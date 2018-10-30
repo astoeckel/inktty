@@ -40,14 +40,14 @@
  * ----------------------------------------------------------------------------
  */
 
+#include <cerrno>
+#include <system_error>
+
 #include <fcntl.h>
 #include <linux/fb.h>
 #include <sys/ioctl.h>
 #include <sys/mman.h>
 #include <unistd.h>
-
-#include <cerrno>
-#include <system_error>
 
 #include <inktty/backends/fbdev.hpp>
 
@@ -57,8 +57,7 @@ namespace inktty {
  * Class FbDevDisplay                                                         *
  ******************************************************************************/
 
-FbDevDisplay::FbDevDisplay(const char *fbdev)
-{
+FbDevDisplay::FbDevDisplay(const char *fbdev) {
 	/* Try to open the framebuffer device */
 	m_fb_fd = open(fbdev, O_RDWR);
 	if (m_fb_fd < 0) {
@@ -104,8 +103,7 @@ FbDevDisplay::FbDevDisplay(const char *fbdev)
 	    m_buf + vinfo.xoffset * m_layout.bypp() + vinfo.yoffset * m_stride;
 }
 
-FbDevDisplay::~FbDevDisplay()
-{
+FbDevDisplay::~FbDevDisplay() {
 	munmap(m_buf, m_buf_size);
 	close(m_fb_fd);
 }
