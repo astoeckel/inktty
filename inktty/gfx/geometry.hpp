@@ -1,0 +1,39 @@
+/*
+ *  inktty -- Terminal emulator optimized for epaper displays
+ *  Copyright (C) 2018  Andreas Stöckel
+ *
+ *  This program is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU Affero General Public License as
+ *  published by the Free Software Foundation, either version 3 of the
+ *  License, or (at your option) any later version.
+ *
+ *  This program is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU Affero General Public License for more details.
+ *
+ *  You should have received a copy of the GNU Affero General Public License
+ *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+// TODO
+
+#ifndef INKTTY_GFX_GEOMETRY_HPP
+#define INKTTY_GFX_GEOMETRY_HPP
+
+namespace inktty {
+
+struct Rect {
+	int x0, y0, x1, y1;
+
+	int width() const { return x1 - x0; }
+	int height() const { return y1 - y0; }
+};
+
+struct Vec {
+	int x, y;
+};
+
+}
+
+#endif /* INKTTY_GFX_GEOMETRY_HPP */
