@@ -59,7 +59,7 @@ extern char **environ;
 namespace inktty {
 
 /******************************************************************************
- * Helper functions                                                           *
+ * STATIC HELPER FUNCTIONS                                                    *
  ******************************************************************************/
 
 #define THROW_ON_ERR(CMD)                                           \
@@ -147,6 +147,10 @@ static int spawn_child_in_pty(int pty_master, int pty_slave, unsigned int rows,
 }
 
 /******************************************************************************
+ * CLASS IMPLEMENTATIONS                                                      *
+ ******************************************************************************/
+
+/******************************************************************************
  * Class PTY                                                                  *
  ******************************************************************************/
 
@@ -181,4 +185,33 @@ PTY::~PTY() {
 	}
 }
 
+/******************************************************************************
+ * Interface PTY::EventSource                                                 *
+ ******************************************************************************/
+
+int PTY::event_fd() const { return m_master_fd; }
+
+EventSource::PollMode PTY::event_fd_poll_mode() const {
+	return EventSource::poll_in;  // TODO: Specify poll_out if we need to write
+	                              // data
+}
+
+bool PTY::event_get(EventSource::PollMode mode, Event &event) {
+	if (mode == EventSource::poll_in) {
+		// Mark the event as a "child input" data event
+		event.type = Event::Type::CHILD_INPUT;
+
+		// Write the event-type specific data
+		Event::Child &data = event.data.child;
+		ssize_t n_read = read(m_master_fd, &data.buf, data.BUF_SIZE);
+		if (n_read >= 0) {
+			data.buf_len = n_read;
+			return true;
+		}
+	}
+	// We've run into an error condition
+	close(m_master_fd);
+	m_master_fd = -1;
+	return false;
+}
 }  // namespace inktty

@@ -18,56 +18,84 @@
 
 #include <stdexcept>
 
-#include <SDL.h>
+#include <sys/eventfd.h>
+#include <unistd.h>
 
 #include <inktty/backends/sdl.hpp>
 
 namespace inktty {
 
 /******************************************************************************
+ * STATIC HELPER FUNCTIONS                                                    *
+ ******************************************************************************/
+
+/******************************************************************************
+ * CLASS IMPLEMENTATIONS                                                      *
+ ******************************************************************************/
+
+/******************************************************************************
  * Class SDLBackend                                                           *
  ******************************************************************************/
 
 SDLBackend::SDLBackend(unsigned int width, unsigned int height)
-    : m_width(width), m_height(height)
-{
+    : m_event_fd(eventfd(0, EFD_SEMAPHORE | EFD_CLOEXEC | EFD_NONBLOCK)),
+      m_done(false),
+      m_width(width),
+      m_height(height),
+      m_wnd(nullptr),
+      m_surf(nullptr),
+      m_gui_thread(SDLBackend::gui_thread_main, this) {}
+
+SDLBackend::~SDLBackend() {
+	// Wait for the GUI thread to exit
+	m_done = true;
+	m_gui_thread.join();
+
+	// Close the event fd
+	close(m_event_fd);
+}
+
+void SDLBackend::gui_thread_main(SDLBackend *self) {
 	// Initialise SDL
 	SDL_Init(SDL_INIT_VIDEO);
 
 	// Create a window with the given size and abort if this fails
-	m_wnd = SDL_CreateWindow("inktty", SDL_WINDOWPOS_UNDEFINED,
-	                         SDL_WINDOWPOS_UNDEFINED, width, height,
-	                         SDL_WINDOW_RESIZABLE);
-	if (!m_wnd) {
+	self->m_wnd = SDL_CreateWindow("inktty", SDL_WINDOWPOS_UNDEFINED,
+	                               SDL_WINDOWPOS_UNDEFINED, self->m_width,
+	                               self->m_height, SDL_WINDOW_RESIZABLE);
+	if (!self->m_wnd) {
 		throw std::runtime_error(SDL_GetError());
 	}
 
 	// Create a surface as our back buffer
-	m_surf = SDL_CreateRGBSurface(0, width, height, 24, 0xFF0000, 0x00FF00,
-	                              0x0000FF, 0);
-	if (!m_surf) {
+	self->m_surf = SDL_CreateRGBSurface(0, self->m_width, self->m_height, 24,
+	                                    0xFF0000, 0x00FF00, 0x0000FF, 0);
+	if (!self->m_surf) {
 		throw std::runtime_error(SDL_GetError());
 	}
-	m_layout.bpp = 24;
-	m_layout.rr = 0;
-	m_layout.rl = 16;
-	m_layout.gr = 0;
-	m_layout.gl = 8;
-	m_layout.br = 0;
-	m_layout.bl = 0;
+	self->m_layout.bpp = 24;
+	self->m_layout.rr = 0;
+	self->m_layout.rl = 16;
+	self->m_layout.gr = 0;
+	self->m_layout.gl = 8;
+	self->m_layout.br = 0;
+	self->m_layout.bl = 0;
 
-	// Allow accessing the surface memory directly
-	SDL_LockSurface(m_surf);
-}
+	SDL_Event event;
+	while (!self->m_done) {
+		if (SDL_WaitEventTimeout(&event, 100)) {
+			std::lock_guard<std::mutex> lock(self->m_gui_mutex);
 
-SDLBackend::~SDLBackend()
-{
-	// Unlock the surface
-	SDL_UnlockSurface(m_surf);
+			self->m_event_queue.push(event);
+
+			uint64_t buf = 1;
+			write(self->m_event_fd, &buf, 8);
+		}
+	}
 
 	// Destroy the surface and window
-	SDL_FreeSurface(m_surf);
-	SDL_DestroyWindow(m_wnd);
+	SDL_FreeSurface(self->m_surf);
+	SDL_DestroyWindow(self->m_wnd);
 
 	// Finalise SDL
 	SDL_Quit();
@@ -77,38 +105,49 @@ uint8_t *SDLBackend::buf() const { return (uint8_t *)(m_surf->pixels); }
 
 unsigned int SDLBackend::stride() const { return m_surf->pitch; }
 
-bool SDLBackend::wait(int timeout)
-{
-	bool done = false;
-	SDL_Event event;
-	while ((!done) && (SDL_WaitEventTimeout(&event, timeout))) {
-		switch (event.type) {
-			case SDL_QUIT:
-				done = true;
-				break;
+void SDLBackend::commit(int x, int y, int w, int h, CommitMode mode) {
+	// TODO: Move to main thread!
 
-			default:
-				break;
-		}
-	}
-	return !done;
-}
-
-void SDLBackend::commit(int x, int y, int w, int h, CommitMode mode)
-{
-	/* Construct the source and target rectangle */
+	// Construct the source and target rectangle
 	SDL_Rect r{x, y, w, h};
 
-	/* Unlock the source surface */
+	// Unlock the source surface
 	SDL_UnlockSurface(m_surf);
 
-	/* Blit to the window */
+	// Blit to the window
 	SDL_Surface *screen = SDL_GetWindowSurface(m_wnd);
 	SDL_BlitSurface(m_surf, &r, screen, &r);
 	SDL_UpdateWindowSurface(m_wnd);
 
-	/* Lock the surface */
+	// Lock the surface
 	SDL_LockSurface(m_surf);
+}
+
+int SDLBackend::event_fd() const { return m_event_fd; }
+
+EventSource::PollMode SDLBackend::event_fd_poll_mode() const {
+	return EventSource::poll_in;
+}
+
+bool SDLBackend::event_get(EventSource::PollMode mode, Event &event) {
+	std::lock_guard<std::mutex> lock(m_gui_mutex);
+
+	if (!m_event_queue.empty()) {
+		/* Decrement the m_event_fd counter by one by calling read() */
+		uint64_t buf;
+		read(m_event_fd, &buf, 8);
+
+		// Fetch the last element from the queue and return
+		const SDL_Event &sdl_ev = m_event_queue.front();
+		switch (sdl_ev.type) {
+			case SDL_QUIT:
+				event.type = Event::Type::QUIT;
+				break;
+		}
+		m_event_queue.pop();
+		return true;
+	}
+	return false;
 }
 
 }  // namespace inktty

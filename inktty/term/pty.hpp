@@ -31,13 +31,15 @@
 #include <string>
 #include <vector>
 
+#include <inktty/events/events.hpp>
+
 namespace inktty {
 
 /**
  * The PTY class represents a pseudo-terminal with a single attached child
  * process running inside.
  */
-class PTY {
+class PTY: public EventSource {
 private:
 	/**
 	 * File-descriptor associated with the PTY.
@@ -82,7 +84,7 @@ public:
 	/**
 	 * Kills the child process and closes the PTY.
 	 */
-	~PTY();
+	~PTY() override;
 
 	/**
 	 * Informs the child process that the terminal has resized.
@@ -101,6 +103,12 @@ public:
 	 * Returns the process ID of the child process.
 	 */
 	int child_pid() const { return m_child_pid; }
+
+	/* Interface EventSource */
+
+	int event_fd() const override;
+	EventSource::PollMode event_fd_poll_mode() const override;
+	bool event_get(EventSource::PollMode mode, Event &event) override;
 };
 
 }  // namespace inktty

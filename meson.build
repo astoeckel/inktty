@@ -27,17 +27,20 @@ dep_freetype = dependency('freetype2', required: true)
 lib_inktty = library(
 	'inktty',
 	[
+		'inktty/events/events.cpp',
 		'inktty/gfx/color.cpp',
 		'inktty/gfx/display.cpp',
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/matrix.cpp',
 		'inktty/term/pty.cpp',
+		'inktty/inktty.cpp',
 	],
 	include_directories: inc_inktty,
 	dependencies: [dep_freetype]
 )
 
 # SDL
+dep_threads = dependency('threads')
 dep_sdl = dependency('sdl2', required: false)
 if dep_sdl.found()
 	exe_inktty_sdl = executable(
@@ -48,7 +51,7 @@ if dep_sdl.found()
 		],
 		include_directories: inc_inktty,
 		link_with: [lib_inktty],
-		dependencies: [dep_sdl]
+		dependencies: [dep_sdl, dep_threads]
 	)
 endif
 

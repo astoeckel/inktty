@@ -16,17 +16,43 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <inktty/backends/sdl.hpp>
-#include <inktty/inktty.hpp>
+/**
+ * @file inktty.hpp
+ *
+ * The Inktty class implements the main application.
+ *
+ * @author Andreas Stöckel
+ */
 
-using namespace inktty;
+#ifndef INKTTY_INKTTY_HPP
+#define INKTTY_INKTTY_HPP
 
+#include <memory>
 
-int main(int argc, char *argv[])
-{
-	SDLBackend display(1600, 1200);
+#include <inktty/events/events.hpp>
+#include <inktty/gfx/display.hpp>
 
-	Inktty({&display}, display).run();
+namespace inktty {
 
-	return 0;
-}
+class Inktty {
+private:
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
+
+public:
+	/**
+	 * Creates a new Inktty instance.
+	 *
+	 * @param event_sources is a list of external event sources.
+	 * @param display is the target display.
+	 */
+	Inktty(const std::vector<EventSource *> &event_sources, Display &display);
+
+	~Inktty();
+
+	void run();
+};
+
+}  // namespace inktty
+
+#endif /* INKTTY_INKTTY_HPP */

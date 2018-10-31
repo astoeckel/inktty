@@ -19,11 +19,15 @@
 #ifndef INKTTY_BACKENDS_SDL_HPP
 #define INKTTY_BACKENDS_SDL_HPP
 
+#include <mutex>
+#include <thread>
+#include <atomic>
+#include <queue>
+
+#include <inktty/events/events.hpp>
 #include <inktty/gfx/display.hpp>
 
-/* Forward declarations */
-struct SDL_Window;
-struct SDL_Surface;
+#include <SDL.h>
 
 namespace inktty {
 
@@ -31,19 +35,30 @@ namespace inktty {
  * Uses the SDL library to display a window and to wait for input events. Can
  * display a debug layer corresponding to the screen commits.
  */
-class SDLBackend: public MemDisplay {
+class SDLBackend : public MemDisplay, public EventSource {
 private:
+	std::queue<SDL_Event> m_event_queue;
+
+	int m_event_fd;
+	std::atomic_bool m_done;
+
+	unsigned int m_width;
+	unsigned int m_height;
+
 	SDL_Window *m_wnd;
 	SDL_Surface *m_surf;
 
 	ColorLayout m_layout;
-	unsigned int m_width;
-	unsigned int m_height;
+
+	std::mutex m_gui_mutex;
+	std::thread m_gui_thread;
+
+	static void gui_thread_main(SDLBackend *self);
 
 protected:
-	const ColorLayout &layout() const override {
-		return m_layout;
-	}
+	/* Interface MemDisplay */
+
+	const ColorLayout &layout() const override { return m_layout; }
 
 	uint8_t *buf() const override;
 
@@ -61,10 +76,7 @@ public:
 	 */
 	~SDLBackend();
 
-	/**
-	 * Waits for events.
-	 */
-	bool wait(int timeout);
+	/* Interface MemDisplay */
 
 	void commit(int x, int y, int w, int h, CommitMode mode) override;
 
@@ -75,7 +87,13 @@ public:
 	unsigned int height() const override {
 		return m_height;
 	}
+
+	/* Interface EventSource */
+
+	int event_fd() const override;
+	EventSource::PollMode event_fd_poll_mode() const override;
+	bool event_get(EventSource::PollMode mode, Event &event) override;
 };
-}
+}  // namespace inktty
 
 #endif /* INKTTY_BACKENDS_SDL_HPP */
