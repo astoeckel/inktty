@@ -31,37 +31,6 @@ namespace inktty {
 namespace {
 
 /******************************************************************************
- * Utility functions                                                          *
- ******************************************************************************/
-
-static int unicode_to_utf8(uint32_t glyph, char *s)
-{
-	if (glyph < 0x80) {
-		s[0] = glyph;
-		return 1;
-	}
-	else if (glyph < 0x0800) {
-		s[0] = 0xC0 | ((glyph >> 6) & 0x7F);
-		s[1] = 0x80 | ((glyph >> 0) & 0x3F);
-		return 2;
-	}
-	else if (glyph < 0x10000) {
-		s[0] = 0xE0 | ((glyph >> 12) & 0x7F);
-		s[1] = 0x80 | ((glyph >> 6) & 0x3F);
-		s[2] = 0x80 | ((glyph >> 0) & 0x3F);
-		return 3;
-	}
-	else if (glyph < 0x11FFFF) {
-		s[0] = 0xF0 | ((glyph >> 18) & 0x7F);
-		s[1] = 0x80 | ((glyph >> 12) & 0x3F);
-		s[2] = 0x80 | ((glyph >> 6) & 0x3F);
-		s[3] = 0x80 | ((glyph >> 0) & 0x3F);
-		return 4;
-	}
-	return 0;
-}
-
-/******************************************************************************
  * Class FreetypeLibrary                                                      *
  ******************************************************************************/
 

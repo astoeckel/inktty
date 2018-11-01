@@ -14,14 +14,24 @@
 #  You should have received a copy of the GNU Affero General Public License
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-project('inktty', 'cpp',
-    default_options : ['cpp_std=c++11', 'b_ndebug=if-release'])
+project('inktty', ['cpp', 'c'],
+    default_options : ['c_std=c99', 'cpp_std=c++11', 'b_ndebug=if-release'])
 
 # Include directory
 inc_inktty = include_directories('.')
+inc_utf8proc = include_directories('./lib')
 
 # Freetype as a dependency
 dep_freetype = dependency('freetype2', required: true)
+
+# utf8proc library
+lib_utf8proc = library(
+	'utf8proc',
+	[
+		'lib/utf8proc/utf8proc.c',
+	],
+	include_directories: [inc_utf8proc]
+)
 
 # Main library
 lib_inktty = library(
@@ -33,11 +43,26 @@ lib_inktty = library(
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/matrix.cpp',
 		'inktty/term/pty.cpp',
+		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
 	],
-	include_directories: inc_inktty,
-	dependencies: [dep_freetype]
+	include_directories: [inc_inktty, inc_utf8proc],
+	dependencies: [dep_freetype],
+	link_with: [lib_utf8proc]
 )
+
+# Unit tests
+dep_foxenunit = dependency(
+    'libfoxenunit',
+    fallback:['libfoxenunit', 'dep_foxenunit'])
+exe_test_utils_utf8 = executable(
+    'test_utils_utf8',
+    'test/utils/test_utf8.cpp',
+    include_directories: [inc_inktty],
+    dependencies: [dep_foxenunit],
+    link_with: [lib_inktty],
+    install: false)
+test('test_utils', exe_test_utils_utf8)
 
 # SDL
 dep_threads = dependency('threads')
