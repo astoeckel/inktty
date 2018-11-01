@@ -45,8 +45,7 @@ private:
 	/**
 	 * Creates the FreetypeLibrary instance.
 	 */
-	Freetype()
-	{
+	Freetype() {
 		FT_Error err = FT_Init_FreeType(&m_library);
 		if (err != FT_Err_Ok) {
 			throw std::runtime_error("Error while initializing freetype2.");
@@ -106,8 +105,7 @@ private:
 	 * Used to compute the hash of the GlyphMetadata class.
 	 */
 	struct GlyphMetadataHasher {
-		size_t operator()(const GlyphMetadata &m) const
-		{
+		size_t operator()(const GlyphMetadata &m) const {
 			return (m.glyph * 48923) ^ (m.size * 28147) ^ (m.monochrome << 5) ^
 			       (m.orientation * 392);
 		}
@@ -158,8 +156,7 @@ private:
 	 * found, moves the glyph to the beginning of the glyph list so it is not
 	 * freed.
 	 */
-	GlyphBitmap *from_cache(const GlyphMetadata &metadata)
-	{
+	GlyphBitmap *from_cache(const GlyphMetadata &metadata) {
 		// Construct the cache key and look it up in the glyph cache
 		auto it = m_glyph_cache_map.find(metadata);
 		if (it == m_glyph_cache_map.end()) {
@@ -181,8 +178,7 @@ private:
 	 */
 	GlyphBitmap *add_to_cache(int x, int y, unsigned int w, unsigned int h,
 	                          unsigned int stride,
-	                          const GlyphMetadata &metadata)
-	{
+	                          const GlyphMetadata &metadata) {
 		// Add a new glyph to the cache
 		m_glyph_cache.emplace_front(x, y, w, h, stride, metadata);
 		auto bmp_it = m_glyph_cache.begin();
@@ -211,9 +207,8 @@ private:
 	 * over a list of probe characters from different scripts and determines the
 	 * corresponding cell size.
 	 */
-	static MonospaceFontMetrics compute_monospace_font_metrics(FT_Face face,
-	                                                           unsigned int dpi)
-	{
+	static MonospaceFontMetrics compute_monospace_font_metrics(
+	    FT_Face face, unsigned int dpi) {
 		// Fix the character size to simplify calculations later on
 		FT_Set_Char_Size(face, 0, 512 * 64, dpi, dpi);
 
@@ -254,18 +249,20 @@ private:
 		return MonospaceFontMetrics{(x1 - x0), (y1 - y0), origin_y};
 	}
 
-	static void copy_rotated(const uint8_t *src, size_t src_stride, size_t src_w, size_t src_h, uint8_t *tar, size_t tar_stride, unsigned int orientation) {
+	static void copy_rotated(const uint8_t *src, size_t src_stride,
+	                         size_t src_w, size_t src_h, uint8_t *tar,
+	                         size_t tar_stride, unsigned int orientation) {
 		switch (orientation % 4) {
 			case 0U:
 				for (size_t j = 0U; j < src_h; j++) {
-					const uint8_t* src_row = src + src_stride * j;
-					uint8_t* tar_row = tar + tar_stride * j;
+					const uint8_t *src_row = src + src_stride * j;
+					uint8_t *tar_row = tar + tar_stride * j;
 					std::copy(src_row, src_row + src_w, tar_row);
 				}
 				break;
 			case 1U:
 				for (size_t j = 0U; j < src_h; j++) {
-					const uint8_t* src_row = src + src_stride * j;
+					const uint8_t *src_row = src + src_stride * j;
 					for (size_t i = 0U; i < src_w; i++) {
 						(tar + tar_stride * (src_w - 1 - i))[j] = src_row[i];
 					}
@@ -273,14 +270,14 @@ private:
 				break;
 			case 2U:
 				for (size_t j = 0U; j < src_h; j++) {
-					const uint8_t* src_row = src + src_stride * j;
-					uint8_t* tar_row = tar + tar_stride * (src_h - 1 - j);
+					const uint8_t *src_row = src + src_stride * j;
+					uint8_t *tar_row = tar + tar_stride * (src_h - 1 - j);
 					std::copy(src_row, src_row + src_w, tar_row);
 				}
 				break;
 			case 3U:
 				for (size_t j = 0U; j < src_h; j++) {
-					const uint8_t* src_row = src + src_stride * j;
+					const uint8_t *src_row = src + src_stride * j;
 					for (size_t i = 0U; i < src_w; i++) {
 						(tar + tar_stride * i)[src_h - 1 - j] = src_row[i];
 					}
@@ -289,19 +286,15 @@ private:
 		}
 	}
 
-
-
 public:
 	Impl(const char *ttf_file, unsigned int dpi, unsigned int max_cache_size)
-	    : m_dpi(dpi), m_max_cache_size(max_cache_size)
-	{
+	    : m_dpi(dpi), m_max_cache_size(max_cache_size) {
 		// Try to load the font face
 		FT_Error err = FT_New_Face(Freetype::library, ttf_file, 0, &m_face);
 		if (err == FT_Err_Unknown_File_Format) {
 			throw std::runtime_error(
 			    "Specified font file format not recognized.");
-		}
-		else if (err != FT_Err_Ok) {
+		} else if (err != FT_Err_Ok) {
 			throw std::runtime_error("Error while loading font.");
 		}
 
@@ -317,21 +310,18 @@ public:
 		FT_Bitmap_Init(&m_tmp_bmp);
 	}
 
-	~Impl()
-	{
+	~Impl() {
 		FT_Bitmap_Done(Freetype::library, &m_tmp_bmp);
 		FT_Done_Face(m_face);
 	}
 
-	void clear()
-	{
+	void clear() {
 		m_glyph_cache_map.clear();
 		m_glyph_cache.clear();
 	}
 
 	const GlyphBitmap *render(uint32_t glyph, unsigned int size,
-	                          bool monochrome, unsigned int orientation)
-	{
+	                          bool monochrome, unsigned int orientation) {
 		// Check whether the glyph is cached, if yes, just return the cached
 		// glyph
 		GlyphMetadata metadata{glyph, size, monochrome, orientation};
@@ -385,22 +375,22 @@ public:
 		const MonospaceFontMetrics m = metrics(size);
 		int x = 0, y = 0;
 		switch (orientation % 4) {
-		    case 0:
-		        x = slot->bitmap_left;
-		        y = m.origin_y - slot->bitmap_top;
-		        break;
-		    case 1:
-		        x = m.origin_y - slot->bitmap_top;
-		        y = slot->bitmap_left;
-		        break;
-		    case 2:
-		        x = slot->bitmap_left;
-		        y = slot->bitmap_top - m.origin_y + (m.cell_height - bmp->rows);
-		        break;
-		    case 3:
-		        x = slot->bitmap_top - m.origin_y + (m.cell_height - bmp->rows);
-		        y = slot->bitmap_left;
-		        break;
+			case 0:
+				x = slot->bitmap_left;
+				y = m.origin_y - slot->bitmap_top;
+				break;
+			case 1:
+				x = m.origin_y - slot->bitmap_top;
+				y = slot->bitmap_left;
+				break;
+			case 2:
+				x = slot->bitmap_left;
+				y = slot->bitmap_top - m.origin_y + (m.cell_height - bmp->rows);
+				break;
+			case 3:
+				x = slot->bitmap_top - m.origin_y + (m.cell_height - bmp->rows);
+				y = slot->bitmap_left;
+				break;
 		}
 
 		// Create the glyph
@@ -410,12 +400,12 @@ public:
 		res = add_to_cache(x, y, w, h, stride, metadata);
 
 		// Copy the glyph to the output glyph
-		copy_rotated(bmp->buffer, bmp->pitch, bmp->width, bmp->rows, res->buf(), stride, orientation);
+		copy_rotated(bmp->buffer, bmp->pitch, bmp->width, bmp->rows, res->buf(),
+		             stride, orientation);
 		return res;
 	}
 
-	MonospaceFontMetrics metrics(int size) const
-	{
+	MonospaceFontMetrics metrics(int size) const {
 		const int num = size, den = 512 * 64 * 64;
 		return MonospaceFontMetrics{m_metrics.cell_width * num / den,
 		                            m_metrics.cell_height * num / den,
@@ -428,25 +418,20 @@ public:
  ******************************************************************************/
 
 Font::Font(const char *ttf_file, unsigned int dpi, unsigned int max_cache_size)
-    : m_impl(std::unique_ptr<Impl>(new Impl(ttf_file, dpi, max_cache_size)))
-{
-}
+    : m_impl(std::unique_ptr<Impl>(new Impl(ttf_file, dpi, max_cache_size))) {}
 
-Font::~Font()
-{
+Font::~Font() {
 	// Do nothing here
 }
 
 void Font::clear() { m_impl->clear(); }
 
 const GlyphBitmap *Font::render(uint32_t glyph, unsigned int size,
-                                bool monochrome, unsigned int orientation)
-{
+                                bool monochrome, unsigned int orientation) {
 	return m_impl->render(glyph, size, monochrome, orientation);
 }
 
-MonospaceFontMetrics Font::metrics(int size) const
-{
+MonospaceFontMetrics Font::metrics(int size) const {
 	return m_impl->metrics(size);
 }
 
