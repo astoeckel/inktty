@@ -25,8 +25,8 @@
  * @author Andreas Stöckel
  */
 
-#ifndef INKTTY_GFX_COLOR_HPP
-#define INKTTY_GFX_COLOR_HPP
+#ifndef INKTTY_UTILS_COLOR_HPP
+#define INKTTY_UTILS_COLOR_HPP
 
 #include <array>
 #include <cassert>
@@ -198,4 +198,4 @@ public:
 
 }  // namespace inktty
 
-#endif /* INKTTY_GFX_COLOR_HPP */
+#endif /* INKTTY_UTILS_COLOR_HPP */

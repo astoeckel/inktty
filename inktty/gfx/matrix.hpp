@@ -18,9 +18,9 @@
 
 #include <vector>
 
-#include <inktty/gfx/color.hpp>
 #include <inktty/gfx/display.hpp>
 #include <inktty/gfx/font.hpp>
+#include <inktty/utils/color.hpp>
 #include <inktty/utils/geometry.hpp>
 
 #ifndef INKTTY_GFX_MATRIX_HPP

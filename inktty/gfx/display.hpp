@@ -23,7 +23,7 @@
 #include <cstdint>
 #include <memory>
 
-#include <inktty/gfx/color.hpp>
+#include <inktty/utils/color.hpp>
 #include <inktty/utils/geometry.hpp>
 
 namespace inktty {

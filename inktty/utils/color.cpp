@@ -16,7 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <inktty/gfx/color.hpp>
+#include <inktty/utils/color.hpp>
 
 namespace inktty {
 

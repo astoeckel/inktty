@@ -38,13 +38,13 @@ inc_inktty = include_directories('.')
 lib_inktty = library(
 	'inktty',
 	[
-		'inktty/gfx/color.cpp',
 		'inktty/gfx/display.cpp',
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/matrix.cpp',
 		'inktty/term/events.cpp',
 		'inktty/term/pty.cpp',
 		'inktty/term/vt100.cpp',
+		'inktty/utils/color.cpp',
 		'inktty/utils/geometry.cpp',
 		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
