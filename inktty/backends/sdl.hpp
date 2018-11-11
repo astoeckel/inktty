@@ -19,50 +19,29 @@
 #ifndef INKTTY_BACKENDS_SDL_HPP
 #define INKTTY_BACKENDS_SDL_HPP
 
-#include <mutex>
-#include <thread>
-#include <atomic>
-#include <queue>
+#include <memory>
 
-#include <inktty/events/events.hpp>
 #include <inktty/gfx/display.hpp>
-
-#include <SDL.h>
+#include <inktty/term/events.hpp>
 
 namespace inktty {
-
 /**
- * Uses the SDL library to display a window and to wait for input events. Can
- * display a debug layer corresponding to the screen commits.
+ * The SDLBackend class implements both a display and event source backend for
+ * Inktty.
  */
-class SDLBackend : public MemDisplay, public EventSource {
+class SDLBackend : public MemoryDisplay, public EventSource {
 private:
-	std::queue<SDL_Event> m_event_queue;
-
-	int m_event_fd;
-	std::atomic_bool m_done;
-
-	unsigned int m_width;
-	unsigned int m_height;
-
-	SDL_Window *m_wnd;
-	SDL_Surface *m_surf;
-
-	ColorLayout m_layout;
-
-	std::mutex m_gui_mutex;
-	std::thread m_gui_thread;
-
-	static void gui_thread_main(SDLBackend *self);
+	/**
+	 * Impl is the actual private implementation of the SDLBackend class.
+	 */
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
 
 protected:
-	/* Interface MemDisplay */
-
-	const ColorLayout &layout() const override { return m_layout; }
-
-	uint8_t *buf() const override;
-
-	unsigned int stride() const override;
+	/* Implementation of the abstract class MemoryDisplay */
+	Rect do_lock() override;
+	void do_unlock(const CommitRequest *begin, const CommitRequest *end,
+	               const RGBA *buf, size_t stride) override;
 
 public:
 	/**
@@ -76,20 +55,7 @@ public:
 	 */
 	~SDLBackend();
 
-	/* Interface MemDisplay */
-
-	void commit(int x, int y, int w, int h, CommitMode mode) override;
-
-	unsigned int width() const override {
-		return m_width;
-	}
-
-	unsigned int height() const override {
-		return m_height;
-	}
-
-	/* Interface EventSource */
-
+	/* Implementation of the abstract class EventSource */
 	int event_fd() const override;
 	EventSource::PollMode event_fd_poll_mode() const override;
 	bool event_get(EventSource::PollMode mode, Event &event) override;

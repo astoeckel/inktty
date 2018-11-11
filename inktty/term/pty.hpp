@@ -31,7 +31,7 @@
 #include <string>
 #include <vector>
 
-#include <inktty/events/events.hpp>
+#include <inktty/term/events.hpp>
 
 namespace inktty {
 
@@ -55,6 +55,12 @@ private:
 	 * PID of the child process.
 	 */
 	int m_child_pid;
+
+	/**
+	 * Write buffer containing the data that was not yet transmitted to the
+	 * client.
+	 */
+	std::vector<uint8_t> m_write_buf;
 
 public:
 	/**
@@ -103,6 +109,11 @@ public:
 	 * Returns the process ID of the child process.
 	 */
 	int child_pid() const { return m_child_pid; }
+
+	/**
+	 * Sends data to the client via STDIN.
+	 */
+	void write(uint8_t *buf, size_t buf_len);
 
 	/* Interface EventSource */
 

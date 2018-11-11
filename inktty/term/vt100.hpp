@@ -16,24 +16,39 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-// TODO
+/**
+ * @file ansi.hpp
+ *
+ * The VT100 class reads the incoming byte-stream, UTF-8 decodes it an writes
+ * it to the text memory matrix.
+ *
+ * @author Andreas Stöckel
+ */
 
-#ifndef INKTTY_GFX_GEOMETRY_HPP
-#define INKTTY_GFX_GEOMETRY_HPP
+#ifndef INKTTY_TERM_VT100_HPP
+#define INKTTY_TERM_VT100_HPP
+
+#include <cstdint>
+#include <cstddef>
+#include <memory>
+
+#include <inktty/gfx/matrix.hpp>
 
 namespace inktty {
 
-struct Rect {
-	int x0, y0, x1, y1;
+class VT100 {
+private:
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
 
-	int width() const { return x1 - x0; }
-	int height() const { return y1 - y0; }
+public:
+	VT100(Matrix &matrix);
+	~VT100();
+
+	void reset();
+	void write(uint8_t *buf, unsigned int buf_len);
 };
 
-struct Vec {
-	int x, y;
-};
+}  // namespace inktty
 
-}
-
-#endif /* INKTTY_GFX_GEOMETRY_HPP */
+#endif /* INKTTY_TERM_VT100_HPP */

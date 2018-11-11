@@ -17,8 +17,7 @@
  */
 
 #include <algorithm>
-
-#include <cstdio>
+#include <iostream>
 
 #include <inktty/gfx/matrix.hpp>
 
@@ -32,23 +31,29 @@ Matrix::Matrix(Font &font, Display &display, unsigned int font_size,
                unsigned int orientation)
     : m_font(font),
       m_display(display),
-      m_palette(Palette::Default16Colours),
+      m_palette(Palette::Default256Colours),
       m_font_size(font_size),
       m_orientation(orientation),
       m_cols(0),
       m_rows(0),
-      m_x0(0),
-      m_y0(0),
-      m_x1(display.width()),
-      m_y1(display.height()),
+      m_bounds(0, 0, 0, 0),
       m_pad_x(0),
       m_pad_y(0),
       m_cell_w(0),
-      m_cell_h(0) {
-	update_geometry();
+      m_cell_h(0),
+      m_needs_geometry_update(true),
+      m_cursor_row(0),
+      m_cursor_col(0),
+      m_row_offs(0) {
+	draw();
+	reset();
 }
 
 void Matrix::reset() {
+	m_cursor_row = 0;
+	m_cursor_col = 0;
+	m_row_offs = 0;
+	m_cursor_visible = true;
 	m_cells.clear();
 	update_geometry();
 }
@@ -59,10 +64,14 @@ void Matrix::update_geometry() {
 	m_cell_w = m.cell_width;
 	m_cell_h = m.cell_height;
 
+	/* Fetch the bounding box */
+	const int b_x0 = m_bounds.x0, b_y0 = m_bounds.y0;
+	const int b_x1 = m_bounds.x1, b_y1 = m_bounds.y1;
+
 	/* Fetch the screen geometry */
 	const unsigned int o = m_orientation;
-	const size_t w = std::max(0, (o & 1) ? (m_y1 - m_y0) : (m_x1 - m_x0));
-	const size_t h = std::max(0, (o & 1) ? (m_x1 - m_x0) : (m_y1 - m_y0));
+	const size_t w = std::max(0, (o & 1) ? (b_y1 - b_y0) : (b_x1 - b_x0));
+	const size_t h = std::max(0, (o & 1) ? (b_x1 - b_x0) : (b_y1 - b_y0));
 
 	/* Compute the number of cells and the padding */
 	m_cols = w / m_cell_w;
@@ -106,42 +115,45 @@ void Matrix::set_cell(size_t row, size_t col, uint32_t glyph,
 }
 
 Rect Matrix::get_coords(size_t row, size_t col) {
-	/* Compute the untransformed bounding box */
+	// Compute the untransformed bounding box
 	const int x0 = col * m_cell_w;
 	const int x1 = x0 + m_cell_w;
 	const int y0 = row * m_cell_h;
 	const int y1 = y0 + m_cell_h;
 
-	/* Return the bounding box depending on the orientation */
+	const int b_x0 = m_bounds.x0, b_y0 = m_bounds.y0;
+	const int b_x1 = m_bounds.x1, b_y1 = m_bounds.y1;
+
+	// Return the bounding box depending on the orientation
 	switch (m_orientation) {
 		default:
 		case 0:
 			return Rect{
-			    m_x0 + m_pad_x + x0,
-			    m_y0 + m_pad_y + y0,
-			    m_x0 + m_pad_x + x1,
-			    m_y0 + m_pad_y + y1,
+			    b_x0 + m_pad_x + x0,
+			    b_y0 + m_pad_y + y0,
+			    b_x0 + m_pad_x + x1,
+			    b_y0 + m_pad_y + y1,
 			};
 		case 1:
 			return Rect{
-			    m_x0 + m_pad_y + y0,
-			    m_y1 - m_pad_x - x1,
-			    m_x0 + m_pad_y + y1,
-			    m_y1 - m_pad_x - x0,
+			    b_x0 + m_pad_y + y0,
+			    b_y1 - m_pad_x - x1,
+			    b_x0 + m_pad_y + y1,
+			    b_y1 - m_pad_x - x0,
 			};
 		case 2:
 			return Rect{
-			    m_x1 - m_pad_x - x1,
-			    m_y1 - m_pad_y - y1,
-			    m_x1 - m_pad_x - x0,
-			    m_y1 - m_pad_y - y0,
+			    b_x1 - m_pad_x - x1,
+			    b_y1 - m_pad_y - y1,
+			    b_x1 - m_pad_x - x0,
+			    b_y1 - m_pad_y - y0,
 			};
 		case 3:
 			return Rect{
-			    m_x1 - m_pad_y - y1,
-			    m_y0 + m_pad_x + x0,
-			    m_x1 - m_pad_y - y0,
-			    m_y0 + m_pad_x + x1,
+			    b_x1 - m_pad_y - y1,
+			    b_y0 + m_pad_x + x0,
+			    b_x1 - m_pad_y - y0,
+			    b_y0 + m_pad_x + x1,
 			};
 	}
 	__builtin_unreachable();
@@ -153,32 +165,71 @@ void Matrix::update() {
 	}
 }
 
+void Matrix::set_cursor_position(int row, int col) {
+	// TODO: This code is ugly
+	if (row != m_cursor_row || col != m_cursor_col) {
+		if (m_cursor_row >= 0 && m_cursor_col >= 0 &&
+		    m_cursor_row < int(m_rows) && m_cursor_col < int(m_cols)) {
+			m_cells[m_cursor_row][m_cursor_col].cursor = false;
+			m_cells[m_cursor_row][m_cursor_col].status = Cell::Status::dirty;
+		}
+		m_cursor_row = row;
+		m_cursor_col = col;
+		if (m_cursor_row >= 0 && m_cursor_col >= 0 &&
+		    m_cursor_row < int(m_rows) && m_cursor_col < int(m_cols)) {
+			m_cells[m_cursor_row][m_cursor_col].cursor = true;
+			m_cells[m_cursor_row][m_cursor_col].status = Cell::Status::dirty;
+		}
+	}
+}
+
+void Matrix::set_cursor_visible(bool visible) {
+	if (visible != m_cursor_visible) {}
+}
+
 void Matrix::draw() {
+	const Rect new_bounds = m_display.lock();  // TODO update screen size
+	if (new_bounds != m_bounds) {
+		m_bounds = new_bounds;
+		m_needs_geometry_update = true;
+	}
+
 	update();
+
 	for (size_t i = 0; i < m_rows; i++) {
 		for (size_t j = 0; j < m_cols; j++) {
-			Cell &c = m_cells[i][j];
+			Cell &c = m_cells[i + m_row_offs][j];
 			if (c.status == Cell::Status::dirty) {
 				/* Fetch foreground and background colour */
-				const RGB fg = c.style.fg.rgb(m_palette);
-				const RGB bg = c.style.bg.rgb(m_palette);
+				RGBA fg = c.style.fg.rgb(m_palette);
+				RGBA bg = c.style.bg.rgb(m_palette);
+				if (c.cursor ^ c.style.inverse) {
+					std::swap(fg, bg);
+				}
 
 				/* Draw the background */
 				const Rect r = get_coords(i, j);
-				m_display.fill(bg, r.x0, r.y0, r.width(), r.height());
+				Rect gr = r;
+				m_display.fill(Display::Layer::Background, bg, r);
 
 				/* Draw the glyph */
-				const GlyphBitmap *g = m_font.render(c.glyph, m_font_size, false, m_orientation);
+				const GlyphBitmap *g =
+				    m_font.render(c.glyph, m_font_size, false, m_orientation);
 				if (g) {
-					m_display.blit(g->buf(), g->stride, fg, bg, r.x0 + g->x,
-							       r.y0 + g->y, g->w, g->h);
+					gr = Rect::sized(r.x0 + g->x, r.y0 + g->y, g->w, g->h);
+					m_display.blit(Display::Layer::Presentation, fg, g->buf(),
+					               g->stride, gr);
 				}
 
 				/* Mark the cell as "drawn" */
 				c.status = Cell::Status::high_quality;
+
+				/* Commit the cell */
+				m_display.commit(r.grow(gr), Display::CommitMode::Full);
 			}
 		}
 	}
+	m_display.unlock();
 }
 
 void Matrix::set_orientation(unsigned int orientation) {
@@ -187,9 +238,25 @@ void Matrix::set_orientation(unsigned int orientation) {
 
 	/* Trigger a full update if the orientation changed */
 	if (orientation != m_orientation) {
-/*		m_display.fill(RGB::Black, 0, 0, m_display.width(), m_display.height());*/
+		/*		m_display.fill(RGB::Black, 0, 0, m_display.width(),
+		 * m_display.height());*/
 		m_orientation = orientation;
 		m_needs_geometry_update = true;
+	}
+}
+
+void Matrix::scroll() {
+	size_t max_scroll_buffer = m_rows * 64;
+	m_cells.emplace_back(m_cols, Cell{});
+	for (size_t i = m_row_offs; i < m_row_offs + m_rows; i++) {
+		for (size_t j = 0; j < m_cols; j++) {
+			m_cells[i][j].status = Cell::Status::dirty;
+		}
+	}
+	m_row_offs++;
+	if (m_row_offs > max_scroll_buffer) {
+		m_cells.erase(m_cells.begin(), m_cells.begin() + max_scroll_buffer);
+		m_row_offs -= max_scroll_buffer;
 	}
 }
 

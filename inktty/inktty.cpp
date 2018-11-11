@@ -18,10 +18,12 @@
 
 #include <iostream>
 
-#include <inktty/inktty.hpp>
 #include <inktty/gfx/font.hpp>
 #include <inktty/gfx/matrix.hpp>
+#include <inktty/inktty.hpp>
 #include <inktty/term/pty.hpp>
+#include <inktty/term/vt100.hpp>
+#include <inktty/utils/utf8.hpp>
 
 namespace inktty {
 
@@ -40,14 +42,16 @@ private:
 	Font m_font;
 	Matrix m_matrix;
 	PTY m_pty;
+	VT100 m_vt100;
 
 public:
 	Impl(const std::vector<EventSource *> &event_sources, Display &display)
 	    : m_event_sources(event_sources),
 	      m_display(display),
 	      m_font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96),
-	      m_matrix(m_font, m_display),
-	      m_pty(m_matrix.rows(), m_matrix.cols(), {"/usr/bin/bash"}) {
+	      m_matrix(m_font, m_display, 10 * 64),
+	      m_pty(m_matrix.rows(), m_matrix.cols(), {"/usr/bin/bash"}),
+	      m_vt100(m_matrix) {
 		m_event_sources.push_back(&m_pty);
 	}
 
@@ -61,47 +65,55 @@ public:
 			if ((evsrc = Event::wait(m_event_sources, event, evsrc)) >= 0) {
 				switch (event.type) {
 					case Event::Type::NONE:
-						std::cout << "Recevied event: NONE" << std::endl;
 						break;
-					case Event::Type::KEYBD_KEY_DOWN:
-						std::cout << "Recevied event: KEYBD_KEY_DOWN"
-						          << std::endl;
+					case Event::Type::KEYBD_KEY_DOWN: {
+						const Event::Keyboard &keybd = event.data.keybd;
+						uint8_t buf[8];
+						size_t buf_ptr = 0;
+
+						/* Handle control characters */
+						if (keybd.alt) {
+							buf[buf_ptr++] = 0x1B;
+						}
+						if (keybd.ctrl && keybd.codepoint >= 'a' && keybd.codepoint <= 'z') {
+							buf[buf_ptr++] = keybd.codepoint - 'a' + 1;
+						} else if (keybd.is_char) {
+							buf_ptr += UTF8Encoder::unicode_to_utf8(keybd.codepoint, (char*)buf + buf_ptr);
+						} else if (keybd.scancode == 40 || keybd.scancode == 88) {
+							buf[buf_ptr++] = '\n';
+						} else if (keybd.scancode == 82) {
+							
+						}
+						if (buf_ptr) {
+							m_pty.write(buf, buf_ptr);
+						}
+						std::cout << "Key down SCANCODE: " << keybd.scancode << " CODEPOINT: " << keybd.codepoint << std::endl;
 						break;
+					}
 					case Event::Type::KEYBD_KEY_UP:
-						std::cout << "Recevied event: KEYBD_KEY_UP"
-						          << std::endl;
+						// Not handles right now
 						break;
-					case Event::Type::KEYBD_KEY_PRESS:
-						std::cout << "Recevied event: KEYBD_KEY_PRESS"
-						          << std::endl;
+					case Event::Type::TEXT_INPUT:
+						m_pty.write(event.data.text.buf,
+						            event.data.text.buf_len);
 						break;
 					case Event::Type::MOUSE_BTN_DOWN:
-						std::cout << "Recevied event: MOUSE_BTN_DOWN"
-						          << std::endl;
 						break;
 					case Event::Type::MOUSE_BTN_UP:
-						std::cout << "Recevied event: MOUSE_BTN_UP"
-						          << std::endl;
 						break;
 					case Event::Type::MOUSE_MOVE:
-						std::cout << "Recevied event: MOUSE_MOVE" << std::endl;
 						break;
 					case Event::Type::MOUSE_CLICK:
-						std::cout << "Recevied event: MOUSE_CLICK" << std::endl;
 						break;
 					case Event::Type::QUIT:
-						std::cout << "Recevied event: QUIT" << std::endl;
 						done = true;
 						break;
 					case Event::Type::RESIZE:
-						std::cout << "Recevied event: RESIZE" << std::endl;
 						break;
 					case Event::Type::CHILD_OUTPUT:
-						std::cout << "Recevied event: CHILD_OUTPUT"
-						          << std::endl;
-						break;
-					case Event::Type::CHILD_INPUT:
-						std::cout << "Recevied event: CHILD_INPUT" << std::endl;
+						m_vt100.write(event.data.child.buf,
+						              event.data.child.buf_len);
+						m_matrix.draw();
 						break;
 				}
 			}

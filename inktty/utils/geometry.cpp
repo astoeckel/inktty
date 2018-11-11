@@ -16,20 +16,23 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <thread>
-#include <chrono>
+#include <inktty/utils/geometry.hpp>
 
-#include <inktty/backends/sdl.hpp>
-#include <inktty/backends/kbdstdin.hpp>
-#include <inktty/inktty.hpp>
+namespace inktty {
+/******************************************************************************
+ * Class Rect                                                                 *
+ ******************************************************************************/
 
-using namespace inktty;
-
-
-int main(int argc, char *argv[])
-{
-	KbdStdin keyboard;
-	SDLBackend display(1600, 1200);
-	Inktty({&display, &keyboard}, display).run();
-	return 0;
+Rect Rect::rotate(const Rect &bounds, int orientation) const {
+	return Rect{};
 }
+
+/******************************************************************************
+ * Class Point                                                                *
+ ******************************************************************************/
+
+Point Point::rotate(const Rect &bounds, int orientation) const {
+	return Point{};
+}
+
+}  // namespace inktty

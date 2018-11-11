@@ -16,58 +16,17 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <thread>
-
 #include <inktty/backends/fbdev.hpp>
-#include <inktty/gfx/font.hpp>
-#include <inktty/gfx/matrix.hpp>
-
-#include <inktty/term/pty.hpp>
-
-#include <iostream>
-#include <unistd.h>
-#include <poll.h>
+#include <inktty/backends/kbdstdin.hpp>
+#include <inktty/inktty.hpp>
 
 using namespace inktty;
 
-int main(int argc, char *argv[]) {
+
+int main(int argc, char *argv[])
+{
 	FbDevDisplay display("/dev/fb0");
-	Font font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96);
-	Matrix matrix(font, display, 18 * 64);
-
-	PTY pty(40, 80, {"/usr/bin/env"});
-
-	struct pollfd ufds[1];
-	ufds[0].fd = pty.fd();
-	ufds[0].events = POLLIN;
-
-	int i = 0, j = 0;
-	char buf;
-	while (read(pty.fd(), &buf, 1) == 1) {
-		if (buf == '\n') {
-			i = 0;
-			j++;
-			continue;
-		}
-		matrix.set_cell(j, i++, buf, Style{});
-		if (i >= matrix.cols()) {
-			i = 0;
-			j++;
-		}
-	}
-
-	int r =0;
-	while (true) {
-		matrix.set_orientation(r++);
-		matrix.update();
-
-		matrix.draw();
-
-		display.commit(0, 0, display.width(), display.height(),
-			           Display::CommitMode::full);
-
-		std::this_thread::sleep_for(std::chrono::seconds(5));
-	}
-
+	KbdStdin keyboard;
+	Inktty({&keyboard}, display).run();
 	return 0;
 }

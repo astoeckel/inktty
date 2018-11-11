@@ -21,7 +21,7 @@
 #include <inktty/gfx/color.hpp>
 #include <inktty/gfx/display.hpp>
 #include <inktty/gfx/font.hpp>
-#include <inktty/gfx/geometry.hpp>
+#include <inktty/utils/geometry.hpp>
 
 #ifndef INKTTY_GFX_MATRIX_HPP
 #define INKTTY_GFX_MATRIX_HPP
@@ -67,6 +67,8 @@ struct Style {
 	 */
 	bool strikethrough : 1;
 
+	bool inverse : 1;
+
 	/**
 	 * Default constructor, resets all member variables to their default value.
 	 */
@@ -77,7 +79,8 @@ struct Style {
 	      bold(false),
 	      italic(false),
 	      underline(false),
-	      strikethrough(false) {}
+	      strikethrough(false),
+	      inverse(false) {}
 
 	/**
 	 * Compares this Style instance to the given other Style instance.
@@ -88,9 +91,7 @@ struct Style {
 		       (underline == o.underline) && (strikethrough == o.strikethrough);
 	}
 
-	bool operator!=(const Style &o) const {
-		return !((*this) == o);
-	}
+	bool operator!=(const Style &o) const { return !((*this) == o); }
 };
 
 class Matrix {
@@ -133,6 +134,11 @@ private:
 		Style style;
 
 		/**
+		 * If true, this cell corresponds to the current cursor location.
+		 */
+		bool cursor;
+
+		/**
 		 * Current cell status.
 		 */
 		Status status;
@@ -146,7 +152,8 @@ private:
 		 */
 		int32_t generation;
 
-		Cell() : glyph(0), status(Status::dirty), generation(0) {}
+		Cell()
+		    : glyph(0), cursor(false), status(Status::dirty), generation(0) {}
 	};
 
 	Font &m_font;
@@ -163,13 +170,19 @@ private:
 
 	size_t m_cols, m_rows;
 
-	int m_x0, m_y0, m_x1, m_y1;
+	Rect m_bounds;
 
 	int m_pad_x, m_pad_y;
 
 	size_t m_cell_w, m_cell_h;
 
 	bool m_needs_geometry_update;
+
+	int m_cursor_row, m_cursor_col;
+
+	size_t m_row_offs;
+
+	bool m_cursor_visible;
 
 	void update_geometry();
 
@@ -192,10 +205,17 @@ public:
 	void update();
 
 	/**
-	 * Sets the client area to which the Matrix will be drawn in display
-	 * coordinates.
+	 * Sets the cursor location to the given row/column.
 	 */
-	void set_area(int x0, int y0, int x1, int y1);
+	void set_cursor_position(int row, int col);
+
+	void set_cursor_visible(bool visible);
+
+	bool cursor_visible() const { return m_cursor_visible; }
+
+	int cursor_row() const { return m_cursor_row; }
+
+	int cursor_col() const { return m_cursor_col; }
 
 	void set_font_size(unsigned int font_size);
 
@@ -213,8 +233,7 @@ public:
 	 * @param glyph is the glyph that should be updated.
 	 * @param style is the style that should be assigned to the cell.
 	 */
-	void set_cell(size_t row, size_t col, uint32_t glyph,
-	              const Style &style);
+	void set_cell(size_t row, size_t col, uint32_t glyph, const Style &style);
 
 	/**
 	 * Returns the number of cells in x-direction.
@@ -225,6 +244,8 @@ public:
 	 * Returns the number of cells in y-direction.
 	 */
 	size_t rows() const { return m_rows; }
+
+	void scroll();
 };
 
 }  // namespace inktty

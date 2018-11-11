@@ -16,9 +16,13 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <inktty/gfx/display.hpp>
+#include <atomic>
+#include <mutex>
+#include <vector>
 
-#include <stdio.h>
+#include <iostream> // XXX
+
+#include <inktty/gfx/display.hpp>
 
 namespace inktty {
 
@@ -26,73 +30,283 @@ namespace inktty {
  * Class Display                                                              *
  ******************************************************************************/
 
-Display::~Display()
-{
+Display::~Display() {
 	// Do nothing here
 }
 
 /******************************************************************************
- * Class MemDisplay                                                           *
+ * Class MemoryDisplay::Impl                                                  *
  ******************************************************************************/
 
-void MemDisplay::blit(const uint8_t *mask, int stride, const RGB &fg, const RGB &bg,
-	                  int x, int y, int w, int h)
-{
-	// Clip the rectangle to the screen bounding box
-	uint8_t *poffs = this->buf();
-	const int pstride = this->stride();
-	const int tar_x0 = clipx(x), tar_x1 = clipx(x + w);
-	const int tar_y0 = clipy(y), tar_y1 = clipy(y + h);
-	const int src_x0 = tar_x0 - x;
-	const int src_y0 = tar_y0 - y;
+class MemoryDisplay::Impl {
+private:
+	MemoryDisplay *m_self = nullptr;
+	std::atomic<int> m_locked;
+	size_t m_width, m_height, m_stride;
+	Rect m_display_rect;
+	Rect m_surf_rect;
+	std::vector<CommitRequest> m_commit_requests;
+	std::vector<RGBA> m_composite;
+	std::vector<RGBA> m_layer_bg;
+	std::vector<RGBA> m_layer_presentation;
+	std::vector<RGBA> m_layer_fg;
+	std::recursive_mutex m_mutex;
 
-	// Convert the color to an integer corresponding to the color layout
-	const ColorLayout &cl = layout();
-	const int bypp = cl.bypp();
+	template <typename T>
+	static T *align(T *p) {
+		//return (T *)((uintptr_t(p) + 15) / 16 * 16);
+		return p;
+	}
 
-	for (int i = tar_y0, i_src = src_y0; i < tar_y1; i++, i_src++) {
-		uint8_t *ptar = poffs + pstride * i + bypp * tar_x0;
-		uint8_t const *psrc = mask + stride * i_src + src_x0;
-		for (int j = tar_x0; j < tar_x1; j++) {
-			const uint8_t a = *(psrc++);
-			const uint8_t r = (uint16_t(fg.r) * a + uint16_t(bg.r) * (255U - a)) >> 8U;
-			const uint8_t g = (uint16_t(fg.g) * a + uint16_t(bg.g) * (255U - a)) >> 8U;
-			const uint8_t b = (uint16_t(fg.b) * a + uint16_t(bg.b) * (255U - a)) >> 8U;
-			const uint32_t cc = cl.conv(RGB(r, g, b));
-			for (int k = 0; k < bypp; k++) {
-				if (a) {
-					*(ptar++) = (cc >> (8 * k)) & 0xFF;
-				} else {
-					ptar++;
+	RGBA *target_pointer(Layer layer) {
+		switch (layer) {
+			case Layer::Background:
+				return align(&m_layer_bg[0]);
+			case Layer::Presentation:
+				return align(&m_layer_presentation[0]);
+			case Layer::Foreground:
+				return align(&m_layer_fg[0]);
+		}
+		return nullptr;
+	}
+
+	void resize(size_t w, size_t h) {
+		// Do nothing if the size did not change
+		if (w == m_width || h == m_height) {
+			return;
+		}
+
+		// Compute the new stride and update the width/height variables
+		m_stride = ((w * sizeof(RGBA) + 15U) / 16U) * 16U;
+		m_width = w;
+		m_height = h;
+
+		// Allocate the memory
+		const size_t size = h * m_stride / sizeof(RGBA);
+		m_composite.resize(size);
+		m_layer_bg.resize(size);
+		m_layer_presentation.resize(size);
+		m_layer_fg.resize(size);
+	}
+
+	void compose(Rect r) {
+		// Align x0 and x1 to a 16-byte boundary
+		const size_t apix = (16U / sizeof(RGBA));
+//		r.x0 = (unsigned int)(r.x0) & (apix - 1U);
+//		r.x1 = (((unsigned int)(r.x1) + (apix - 1U)) / apix) * apix;
+
+		// Fetch background, "middleground" and foreground
+		RGBA *p_tar_s = align(&m_composite[0]);
+		const RGBA *p_bg_s = target_pointer(Layer::Background);
+		const RGBA *p_mg_s = target_pointer(Layer::Presentation);
+		const RGBA *p_fg_s = target_pointer(Layer::Foreground);
+
+		// Iterate over each line and render the composite image
+		for (size_t y = size_t(r.y0); y < size_t(r.y1); y++) {
+			// Compute the offsets from the top-left pixel
+			const size_t o0 = y * m_stride / sizeof(RGBA) + r.x0;
+			const size_t o1 = y * m_stride / sizeof(RGBA) + r.x1;
+
+			// Compute the source and target pointers
+/*			RGBA *p_tar0 = (RGBA *)__builtin_assume_aligned(p_tar_s + o0, 16U);
+			RGBA *p_tar1 = (RGBA *)__builtin_assume_aligned(p_tar_s + o1, 16U);
+			const RGBA *p_bg =
+			    (const RGBA *)__builtin_assume_aligned(p_bg_s + o0, 16U);
+			const RGBA *p_mg =
+			    (const RGBA *)__builtin_assume_aligned(p_mg_s + o0, 16U);
+			const RGBA *p_fg =
+			    (const RGBA *)__builtin_assume_aligned(p_fg_s + o0, 16U);*/
+			RGBA *p_tar0 = p_tar_s + o0;
+			RGBA *p_tar1 = p_tar_s + o1;
+			const RGBA *p_bg = p_bg_s + o0;
+			const RGBA *p_mg = p_mg_s + o0;
+			const RGBA *p_fg = p_fg_s + o0;
+
+			for (RGBA *p = p_tar0; p < p_tar1; p++, p_bg++, p_mg++, p_fg++) {
+				// Fetch the background and blend it with the middle-ground,
+				// assume the background was fully opaque.
+				uint16_t r = p_bg->r, g = p_bg->g, b = p_bg->b, a = p_mg->a;
+				r = (r * (255 - a)) / 255 + p_mg->r;
+				g = (g * (255 - a)) / 255 + p_mg->g;
+				b = (b * (255 - a)) / 255 + p_mg->b;
+
+				// Blend the middleground with the foreground
+/*				a = p_fg->a;
+				r = (r * (255 - a)) / 255 + p_fg->r;
+				g = (g * (255 - a)) / 255 + p_fg->g;
+				b = (b * (255 - a)) / 255 + p_fg->b;*/
+
+				// Store the result
+				*p = RGBA(r, g, b);
+			}
+		}
+	}
+
+public:
+	Impl(MemoryDisplay *self)
+	    : m_self(self),
+	      m_locked(0),
+	      m_width(0),
+	      m_height(0),
+	      m_stride(0),
+	      m_display_rect(0, 0, 0, 0),
+	      m_surf_rect(0, 0, 0, 0) {
+	}
+
+	Rect lock() {
+		// Lock the recursive mutex preventing concurrent access to the display
+		m_mutex.lock();
+
+		if (m_locked == 0) {
+			// Fetch the current display bounding rectangle and resize the
+			// buffers
+			Rect r = m_self->do_lock();
+			if (r.valid()) {
+				resize(r.width(), r.height());
+				m_display_rect = r;
+				m_surf_rect = Rect(0, 0, m_width, m_height);
+			}
+		}
+
+		// Increment the lock counter and return the bounding rectangle
+		m_locked++;
+		return m_surf_rect;
+	}
+
+	void unlock() {
+		if (m_locked > 0) {
+			m_locked--;
+			if (m_locked == 0) {
+				// Perform the composition operation on the specified rectangle
+				// and transform the commit requests bounding boxes to the
+				// coordinate system used by the implementation
+				const Point origin{m_display_rect.x0, m_display_rect.y0};
+				for (size_t i = 0; i < m_commit_requests.size(); i++) {
+					compose(m_commit_requests[i].r);
+					m_commit_requests[i].r += origin;
+				}
+
+				// Pass the data to the actual display implementation
+				const CommitRequest *r0 = m_commit_requests.data();
+				const CommitRequest *r1 = r0 + m_commit_requests.size();
+				m_self->do_unlock(r0, r1, m_composite.data(), m_stride);
+				m_commit_requests.clear();
+
+				// Allow other threads to call lock()
+				m_mutex.unlock();
+			}
+		}
+	}
+
+	void commit(const Rect &r, CommitMode mode) {
+		// Abort if the surface is not locked
+		if (m_locked <= 0) {
+			return;
+		}
+
+		// Clip the given rectangle to the surface rectangle and add it to the
+		// list of queued requests
+		Rect tar;
+		if (!r.valid()) {
+			tar = m_surf_rect;
+		} else {
+			tar = m_surf_rect.clip(r);
+		}
+		m_commit_requests.emplace_back(CommitRequest{tar, mode});
+	}
+
+	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
+	          const Rect r, DrawMode mode) {
+		// Abort if the surface is not locked
+		if (m_locked <= 0) {
+			return;
+		}
+
+		// Clip the given rectangle to the target rectangle and abort if there
+		// is nothing to draw
+		const Rect tar = m_surf_rect.clip(r);
+		if (tar.width() == 0 || tar.height() == 0) {
+			return;
+		}
+
+		// Fetch the target pointer
+		RGBA *p = target_pointer(layer);
+		if (!p) {
+			return;  // Invalid layer specified
+		}
+
+		// Blit the given data onto the target surface
+		const size_t w = tar.x1 - tar.x0;
+		for (size_t y = size_t(tar.y0); y < size_t(tar.y1); y++) {
+			RGBA *ptar = p + (m_stride * y) / sizeof(RGBA) + tar.x0;
+			const uint8_t *psrc = mask + stride * (y - tar.y0);
+			for (size_t x = 0; x < w; x++) {
+				const uint16_t a = psrc[x];
+				if (a > 0) {
+					ptar[x] = RGBA(c.r * a / 255, c.g * a / 255, c.b * a / 255, a);
 				}
 			}
 		}
 	}
-}
 
-void MemDisplay::fill(const RGB &c, int x, int y, int w, int h)
-{
-	// Clip the rectangle to the screen bounding box
-	uint8_t *poffs = buf();
-	const int pstride = stride();
-	const int x0 = clipx(x), x1 = clipx(x + w);
-	const int y0 = clipy(y), y1 = clipy(y + h);
+	void fill(Layer layer, const RGBA &c, const Rect &r) {
+		// Abort if the surface is not locked
+		if (m_locked <= 0) {
+			return;
+		}
 
-	// Convert the color to an integer corresponding to the color layout
-	const ColorLayout &cl = layout();
-	const int bypp = cl.bypp();
-	const uint32_t cc = cl.conv(c);
-
-	// Fill each line with the specified color
-	// TODO: this code can be heavily optimized
-	for (int i = y0; i < y1; i++) {
-		uint8_t *p = poffs + pstride * i + bypp * x0;
-		for (int j = x0; j < x1; j++) {
-			for (int k = 0; k < bypp; k++) {
-				*(p++) = (cc >> (8 * k)) & 0xFF;
+		// Clip the given rectangle to the target rectangle and abort if there
+		// is nothing to draw
+		Rect tar;
+		if (!r.valid()) {
+			tar = m_surf_rect;
+		} else {
+			tar = m_surf_rect.clip(r);
+			if (tar.width() == 0 || tar.height() == 0) {
+				return;  // Nothing to draw
 			}
 		}
+
+		// Fetch the target pointer
+		RGBA *p = target_pointer(layer);
+		if (!p) {
+			return;  // Invalid layer specified
+		}
+
+		// Fill the specified rectangle with the colour premultiplied with the
+		// alpha channel. Premultiplied alpha makes the composition faster.
+		const RGBA f = c.premultiply_alpha();
+		for (size_t y = size_t(tar.y0); y < size_t(tar.y1); y++) {
+			RGBA *py = p + (m_stride * y) / sizeof(RGBA) + tar.x0;
+			std::fill(py, py + tar.width(), f);
+		}
 	}
+};
+
+/******************************************************************************
+ * Class MemoryDisplay                                                        *
+ ******************************************************************************/
+
+MemoryDisplay::MemoryDisplay() : m_impl(new Impl(this)) {}
+
+MemoryDisplay::~MemoryDisplay() {
+	// Do nothing here, implicitly destroy m_impl
 }
 
+Rect MemoryDisplay::lock() { return m_impl->lock(); }
+
+void MemoryDisplay::unlock() { m_impl->unlock(); }
+
+void MemoryDisplay::commit(const Rect &r, CommitMode mode) {
+	m_impl->commit(r, mode);
+}
+
+void MemoryDisplay::blit(Layer layer, const RGBA &c, const uint8_t *mask,
+                         size_t stride, const Rect r, DrawMode mode) {
+	m_impl->blit(layer, c, mask, stride, r, mode);
+}
+
+void MemoryDisplay::fill(Layer layer, const RGBA &c, const Rect &r) {
+	m_impl->fill(layer, c, r);
+}
 }  // namespace inktty

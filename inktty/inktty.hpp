@@ -29,7 +29,7 @@
 
 #include <memory>
 
-#include <inktty/events/events.hpp>
+#include <inktty/term/events.hpp>
 #include <inktty/gfx/display.hpp>
 
 namespace inktty {

@@ -1,0 +1,4 @@
+[wrap-git]
+directory=vtparse
+url=https://github.com/astoeckel/vtparse
+revision=head

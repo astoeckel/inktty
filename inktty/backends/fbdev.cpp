@@ -108,5 +108,25 @@ FbDevDisplay::~FbDevDisplay() {
 	close(m_fb_fd);
 }
 
-void FbDevDisplay::commit(int x, int y, int w, int h, CommitMode mode) {}
+Rect FbDevDisplay::do_lock() { return Rect(0, 0, m_width, m_height); }
+
+void FbDevDisplay::do_unlock(const CommitRequest *begin, const CommitRequest *end,
+                          const RGBA *buf, size_t stride) {
+	const int bypp = m_layout.bypp();
+	for (CommitRequest const *req = begin; req < end; req++) {
+		const Rect r = req->r;
+		const int w = r.width();
+		for (int y = r.y0; y < r.y1; y++) {
+			uint8_t *ptar = m_buf_offs + y * m_stride + r.x0 * bypp;
+			RGBA const *psrc = buf + y * stride / sizeof(RGBA) + r.x0;
+			for (int x = 0; x < w; x++) {
+				const uint32_t cc = m_layout.conv(*(psrc++));
+				for (int k = 0; k < bypp; k++) {
+					*(ptar++) = (cc >> (8 * k)) & 0xFF;
+				}
+			}
+		}
+	}
+}
+
 }  // namespace inktty

@@ -35,37 +35,48 @@
 
 namespace inktty {
 /**
- * A struct describing a 24-bit RGB colour.
+ * A struct describing a 32-bit RGBA colour.
  */
-struct RGB {
+struct RGBA {
 	/**
 	 * R, G, B value.
 	 */
-	uint8_t r, g, b;
+	uint8_t r, g, b, a;
 
 	/**
 	 * Default constructor, initialises all values to zero.
 	 */
-	constexpr RGB() : r(0U), g(0U), b(0U) {}
+	constexpr RGBA() : r(0U), g(0U), b(0U), a(0U) {}
 
 	/**
-	 * Constructs a new grayscale colour from the given RGB hex colour code.
+	 * Constructs a new colour from the given RGBA hex colour code. Sets the
+	 * alpha channel to maximum opacity.
 	 */
-	constexpr RGB(uint32_t hex)
+	constexpr RGBA(uint32_t hex)
 	    : r((hex & 0xFF0000U) >> 16U),
 	      g((hex & 0xFF00U) >> 8U),
-	      b(hex & 0xFFU) {}
+	      b(hex & 0xFFU),
+	      a(0xFFU) {}
 
 	/**
-	 * Constructs a new RGB colour.
+	 * Constructs a new RGBA colour.
 	 */
-	constexpr RGB(uint8_t r, uint8_t g, uint8_t b) : r(r), g(g), b(b) {}
+	constexpr RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xFFU)
+	    : r(r), g(g), b(b), a(a) {}
 
-	static const RGB Black;
-	static const RGB White;
+	static const RGBA Black;
+	static const RGBA White;
 
-	bool operator==(const RGB &o) const {
-		return (r == o.r) && (b == o.b) && (g == o.g);
+	bool operator==(const RGBA &o) const {
+		return (r == o.r) && (b == o.b) && (g == o.g) && (a == o.a);
+	}
+
+	RGBA premultiply_alpha() const {
+		return RGBA(
+			uint16_t(r) * a / 255,
+			uint16_t(g) * a / 255,
+			uint16_t(b) * a / 255,
+			a);
 	}
 };
 
@@ -77,7 +88,7 @@ private:
 	/**
 	 * Array storing the actual palette entries.
 	 */
-	std::array<RGB, 256> m_entries;
+	std::array<RGBA, 256> m_entries;
 
 	/**
 	 * Contains the size of this table.
@@ -94,7 +105,7 @@ public:
 
 		/* Initialise the memory */
 		for (int i = 0; i < size; i++) {
-			m_entries[i] = RGB();
+			m_entries[i] = RGBA();
 		}
 	}
 
@@ -102,17 +113,11 @@ public:
 	 * Constructs a new palette by copying the given structure to the internal
 	 * memory.
 	 */
-	Palette(int size, const RGB *data) : Palette(size) {
+	Palette(int size, const RGBA *data) : Palette(size) {
 		for (int i = 0; i < size; i++) {
 			m_entries[i] = data[i];
 		}
 	}
-
-	/**
-	 * Returns a reference at the Tango 16 colour palette used by Gnome
-	 * Terminal.
-	 */
-	static const Palette Tango16Colours;
 
 	/**
 	 * Returns a reference at the default 16 colour palette.
@@ -129,56 +134,56 @@ public:
 	 */
 	size_t size() const;
 
-	RGB &operator[](int i) {
+	RGBA &operator[](int i) {
 		if (i >= 0 && size_t(i) < m_size) {
 			return m_entries[i];
 		}
-		return const_cast<RGB &>(RGB::Black);
+		return const_cast<RGBA &>(RGBA::Black);
 	}
 
-	const RGB &operator[](int i) const {
+	const RGBA &operator[](int i) const {
 		return (*const_cast<Palette *>(this))[i];
 	}
 };
 
 /**
- * The color class represents either an indexed colour or an RGB colour.
+ * The color class represents either an indexed colour or an RGBA colour.
  */
 class Color {
 private:
 	/**
-	 * Enum describing the two possible colour modes: indexed colours or RGB
+	 * Enum describing the two possible colour modes: indexed colours or RGBA
 	 * colours.
 	 */
-	enum class Mode { indexed, rgb };
+	enum class Mode { Indexed, RGB };
 
 	/**
-	 * Mode of this colour descriptor, either Indexed or RGB.
+	 * Mode of this colour descriptor, either Indexed or RGBA.
 	 */
 	Mode m_mode;
 
 	int m_idx;
 
-	RGB m_rgb;
+	RGBA m_rgb;
 
 public:
-	Color(int idx) : m_mode(Mode::indexed), m_idx(idx) {}
+	Color(int idx) : m_mode(Mode::Indexed), m_idx(idx) {}
 
-	Color(const RGB &rgb) : m_mode(Mode::rgb), m_rgb(rgb) {}
+	Color(const RGBA &rgba) : m_mode(Mode::RGB), m_rgb(rgba) {}
 
 	/**
-	 * Returns the RGB colour represented by this Colour instance. If the colour
-	 * is in indexed mode looks up the RGB colour from the palette, otherwise
+	 * Returns the RGBA colour represented by this Colour instance. If the colour
+	 * is in indexed mode looks up the RGBA colour from the palette, otherwise
 	 * directly returns the colour.
 	 *
 	 * @param p is the palette from which the colour should be looked up if in
 	 * indexed mode.
 	 */
-	const RGB &rgb(const Palette &p) {
+	const RGBA &rgb(const Palette &p) {
 		switch (m_mode) {
-			case Mode::indexed:
+			case Mode::Indexed:
 				return p[m_idx];
-			case Mode::rgb:
+			case Mode::RGB:
 				return m_rgb;
 		}
 		__builtin_unreachable();
@@ -186,8 +191,8 @@ public:
 
 	bool operator==(const Color &o) const {
 		return (m_mode == o.m_mode) &&
-		       (((m_mode == Mode::indexed) && (m_idx == o.m_idx)) ||
-		        ((m_mode == Mode::rgb) && (m_rgb == o.m_rgb)));
+		       (((m_mode == Mode::Indexed) && (m_idx == o.m_idx)) ||
+		        ((m_mode == Mode::RGB) && (m_rgb == o.m_rgb)));
 	}
 };
 

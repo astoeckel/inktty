@@ -185,6 +185,10 @@ PTY::~PTY() {
 	}
 }
 
+void PTY::write(uint8_t *buf, size_t buf_len) {
+	m_write_buf.insert(m_write_buf.end(), buf, buf + buf_len);
+}
+
 /******************************************************************************
  * Interface PTY::EventSource                                                 *
  ******************************************************************************/
@@ -192,26 +196,36 @@ PTY::~PTY() {
 int PTY::event_fd() const { return m_master_fd; }
 
 EventSource::PollMode PTY::event_fd_poll_mode() const {
-	return EventSource::poll_in;  // TODO: Specify poll_out if we need to write
-	                              // data
+	return EventSource::PollMode(
+	    EventSource::PollIn |
+	    (m_write_buf.empty() ? EventSource::PollNone : EventSource::PollOut));
 }
 
 bool PTY::event_get(EventSource::PollMode mode, Event &event) {
-	if (mode == EventSource::poll_in) {
-		// Mark the event as a "child input" data event
-		event.type = Event::Type::CHILD_INPUT;
+	if (mode == EventSource::PollIn) {
+		// Mark the event as a "child output" data event
+		event.type = Event::Type::CHILD_OUTPUT;
 
 		// Write the event-type specific data
 		Event::Child &data = event.data.child;
-		ssize_t n_read = read(m_master_fd, &data.buf, data.BUF_SIZE);
+		ssize_t n_read = read(m_master_fd, &data.buf, Event::BUF_SIZE);
 		if (n_read >= 0) {
 			data.buf_len = n_read;
 			return true;
 		}
+	} else if (mode == EventSource::PollOut) {
+		ssize_t n_write =
+		    ::write(m_master_fd, m_write_buf.data(), m_write_buf.size());
+		if (n_write >= 0) {
+			m_write_buf.erase(m_write_buf.begin(),
+			                  m_write_buf.begin() + n_write);
+			return false;  // We handled this event
+		}
 	}
-	// We've run into an error condition
+	// We've run into an error condition, quit
+	event.type = Event::Type::QUIT;
 	close(m_master_fd);
 	m_master_fd = -1;
-	return false;
+	return true;
 }
 }  // namespace inktty

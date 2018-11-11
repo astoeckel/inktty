@@ -21,8 +21,10 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 
 #include <inktty/gfx/color.hpp>
+#include <inktty/utils/geometry.hpp>
 
 namespace inktty {
 /**
@@ -42,54 +44,210 @@ public:
 		/**
 		 * Perform an automatic partial update with default quality.
 		 */
-		partial,
+		Partial,
 
 		/**
 		 * Perform a partial update with a forced flash-to-black.
 		 */
-		flash_partial,
+		Flash_Partial,
 
 		/**
 		 * Perform an with low quality as used for UI elements.
 		 */
-		flash_ui,
+		Flash_Ui,
 
 		/**
 		 * Perform a full, high-quality update.
 		 */
-		full,
+		Full,
 
 		/**
 		 * Perform a fast update with low-quality.
 		 */
-		fast,
+		Fast,
 	};
 
+	/**
+	 * The display consists of three independent layers that are composed into a
+	 * single image when commiting to the display.
+	 */
+	enum class Layer {
+		/**
+		 * Layer containing the background image. The handling of transparency
+		 * in this layer is implementation-defined.
+		 */
+		Background,
+
+		/**
+		 * The presentation layer is supposed to contain the actual characters
+		 * or UI elements that are being displayed.
+		 */
+		Presentation,
+
+		/**
+		 * The foreground layer contains cursors or other UI elements that
+		 * should be drawn independently on top of the other two layers.
+		 */
+		Foreground
+	};
+
+	/**
+	 * Draw mode to use when blitting onto a surface.
+	 */
+	enum class DrawMode {
+		/**
+		 * Writes the mask to the target layer. Blends with already existing
+		 * content.
+		 */
+		Write,
+
+		/**
+		 * Removes the mask from the target layer, undoing the "write"
+		 * operation. This (to some degree) allows to remove overlapping shapes
+		 * without having to re-render large parts of the screen.
+		 */
+		Remove
+	};
+
+	/**
+	 * Virtual destructor. Does nothing in this interface definition.
+	 */
 	virtual ~Display();
+
+	/**
+	 * Locks the display. Drawing and commit operations are now allowed.
+	 * Performing a draw or commit operation without locking the surface has no
+	 * effect. Note that locking must be reference counted, i.e. multiple calls
+	 * to lock()/unlock() must be possible as long as the number of calls to
+	 * lock()/unlock() is equal. The size of the display must not change while
+	 * the display is locked.
+	 *
+	 * @return The bounding rectangle of the display.
+	 */
+	virtual Rect lock() = 0;
+
+	/**
+	 * Unlocks the surface. Whenever unlock() has been called as often as
+	 * lock(), all queued changes are commited to the display.
+	 */
+	virtual void unlock() = 0;
+
+	/**
+	 * Commits the content written to the display to the screen in the given
+	 * region. This function allows to specify a "CommitMode" which can be used
+	 * by e-paper displays to choose the driving waveforms for this operation.
+	 * Note that the actual commit operation takes place once unlock() is called
+	 * and after all drawing operations occured.
+	 */
+	virtual void commit(const Rect &r = Rect(),
+	                    CommitMode mode = CommitMode::Full) = 0;
 
 	/**
 	 * Blits the given mask bitmap (i.e. an 8-bit grayscale image) to the
 	 * display at location (x, y).
 	 *
-	 * @param mask is a pointer at a 8-bit grayscale image. Black regions in
-	 * this image (with value zero) are replaced with the background colour,
-	 * white regions with the foreground color. Grayscales in between are
-	 * replaced with a blend between the foreground and background colour.
+	 * @param mask is a pointer at a 8-bit alpha-mask. Determines how
 	 * @param stride is the width of one line in the mask image in bytes.
 	 * @param fg is the foreground color that should be used.
 	 * @param bg is the background color that should be used.
-	 * @param x is the x-coordinate of the top-left corner of the rectangle that
-	 * should be filled.
-	 * @param y is the y-coordinate of the top-left corner of the rectangle that
-	 * should be filled.
-	 * @param w is the width of the rectangle in pixels.
-	 * @param h is the height of the rectangle in pixels.
+	 * @param r is the target rectangle. The width and height of this rectangle
+	 * also determines the width/height of the source image.
 	 */
-	virtual void blit(const uint8_t *mask, int stride, const RGB &fg, const RGB &bg,
-	                  int x, int y, int w, int h) = 0;
+	virtual void blit(Layer layer, const RGBA &c, const uint8_t *mask,
+	                  size_t stride, const Rect r,
+	                  DrawMode mode = DrawMode::Write) = 0;
 
 	/**
-	 * Fills the specified rectangle with the given colour.
+	 * Fills the specified rectangle with the given solid colour.
+	 */
+	virtual void fill(Layer layer, const RGBA &c = RGBA::White,
+	                  const Rect &r = Rect()) = 0;
+};
+
+/**
+ * The MemoryDisplay class implements most of the Display interface and all
+ * drawing operations. The actual display backend must implement the protected
+ * do_lock(), do_unlock() functions.
+ */
+class MemoryDisplay : public Display {
+protected:
+	/**
+	 * Structure for storing the accumulated commit requests.
+	 */
+	struct CommitRequest {
+		Rect r;
+		CommitMode mode;
+	};
+
+	/**
+	 * Must return the current size of the display and not change it until
+	 * unlock() is called.
+	 */
+	virtual Rect do_lock() = 0;
+
+	/**
+	 * Unlocks the display.
+	 */
+	virtual void do_unlock(const CommitRequest *begin, const CommitRequest *end,
+	                       const RGBA *buf, size_t stride) = 0;
+
+private:
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
+
+public:
+	/**
+	 * Default constructor. Creates the internal implementation.
+	 */
+	MemoryDisplay();
+
+	/**
+	 * Destructor, destroys the internal implementation.
+	 */
+	~MemoryDisplay();
+
+	/**
+	 * Locks the display. Drawing and commit operations are now allowed.
+	 * Performing a draw or commit operation without locking the surface has no
+	 * effect.
+	 *
+	 * @return The bounding rectangle of the display.
+	 */
+	Rect lock() override;
+
+	/**
+	 * Unlocks the surface. Actually commits all queued changes to the display.
+	 */
+	void unlock() override;
+
+	/**
+	 * Commits the content written to the display to the screen in the given
+	 * region. This function allows to specify a "CommitMode" which can be used
+	 * by e-paper displays to choose the driving waveforms for this operation.
+	 * Note that the actual commit operation takes place once unlock() is called
+	 * and after all drawing operations occured.
+	 */
+	void commit(const Rect &r = Rect(),
+	            CommitMode mode = CommitMode::Full) override;
+
+	/**
+	 * Blits the given mask bitmap (i.e. an 8-bit grayscale image) to the
+	 * display at location (x, y).
+	 *
+	 * @param mask is a pointer at a 8-bit alpha-mask. Determines how
+	 * @param stride is the width of one line in the mask image in bytes.
+	 * @param fg is the foreground color that should be used.
+	 * @param bg is the background color that should be used.
+	 * @param r is the target rectangle. The width and height of this rectangle
+	 * also determines the width/height of the source image.
+	 */
+	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
+	          const Rect r,
+
+	          DrawMode mode = DrawMode::Write) override;
+
+	/**
+	 * Fills the specified rectangle with the given solid colour.
 	 *
 	 * @param c is the colour the rectangle should be filled with.
 	 * @param x is the x-coordinate of the top-left corner of the rectangle that
@@ -97,104 +255,9 @@ public:
 	 * @param y is the y-coordinate of the top-left corner of the rectangle that
 	 * should be filled.
 	 */
-	virtual void fill(const RGB &c, int x, int y, int w, int h) = 0;
-
-	/**
-	 * Commits the content written to the display to the screen in the given
-	 * region. This function allows to specify a "CommitMode" which can be used
-	 * by e-paper displays to choose the driving waveforms for this operation.
-	 */
-	virtual void commit(int x, int y, int w, int h, CommitMode mode) = 0;
-
-	/**
-	 * Returns the width of the display in pixels.
-	 */
-	virtual unsigned int width() const = 0;
-
-	/**
-	 * Returns the height of the display in pixels.
-	 */
-	virtual unsigned int height() const = 0;
-
-	/**
-	 * Clips the given x-coordinate to a valid x-coordinate within the screen
-	 * region.
-	 */
-	int clipx(int x)
-	{
-		return (x < 0) ? 0 : (((unsigned int)x >= width()) ? width() : x);
-	}
-
-	/**
-	 * Clips the given y-coordinate to a valid y-coordinate within the screen
-	 * region.
-	 */
-	int clipy(int y)
-	{
-		return (y < 0) ? 0 : (((unsigned int)y >= height()) ? height() : y);
-	}
+	void fill(Layer layer, const RGBA &c = RGBA::White,
+	          const Rect &r = Rect()) override;
 };
-
-/**
- * Specialisation of the Display class that implements the blit() and fill()
- * functions assuming that the back-buffer is a memory region.
- */
-class MemDisplay : public Display {
-protected:
-	/**
-	 * Specifies the display color layout.
-	 */
-	struct ColorLayout {
-		/**
-		 * Bits per pixel.
-		 */
-		uint8_t bpp;
-
-		/**
-		 * Left/right shift per component to convert from 8 bit to the given
-		 * colour.
-		 */
-		uint8_t rr, rl, gr, gl, br, bl;
-
-		/**
-		 * Converts the given colour to the specified colour space.
-		 */
-		uint32_t conv(const RGB &c) const
-		{
-			return ((uint32_t(c.r) >> rr) << rl) |
-			       ((uint32_t(c.g) >> gr) << gl) |
-			       ((uint32_t(c.b) >> br) << bl);
-		}
-
-		/**
-		 * Computes the bytes per pixel.
-		 */
-		uint8_t bypp() const { return (bpp + 7U) >> 3U; }
-	};
-
-	/**
-	 * Must be implemented by the display and return the pointer at the
-	 * back-buffer.
-	 */
-	virtual uint8_t *buf() const = 0;
-
-	/**
-	 * Returns the width of one line in bytes.
-	 */
-	virtual unsigned int stride() const = 0;
-
-	/**
-	 * Returns a reference at the color layout used in the memory display.
-	 */
-	virtual const ColorLayout &layout() const = 0;
-
-public:
-	void blit(const uint8_t *mask, int stride, const RGB &fg, const RGB &bg,
-	                  int x, int y, int w, int h) override;
-
-	void fill(const RGB &c, int x, int y, int w, int h) override;
-};
-
 }  // namespace inktty
 
 #endif /* INKTTY_GFX_DISPLAY_HPP */

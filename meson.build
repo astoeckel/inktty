@@ -17,14 +17,14 @@
 project('inktty', ['cpp', 'c'],
     default_options : ['c_std=c99', 'cpp_std=c++11', 'b_ndebug=if-release'])
 
-# Include directory
-inc_inktty = include_directories('.')
-inc_utf8proc = include_directories('./lib')
-
-# Freetype as a dependency
+# Dependencies
 dep_freetype = dependency('freetype2', required: true)
+dep_vtparse = dependency('vtparse',
+	fallback:['vtparse', 'dep_vtparse'],
+	required: true)
 
 # utf8proc library
+inc_utf8proc = include_directories('./lib')
 lib_utf8proc = library(
 	'utf8proc',
 	[
@@ -34,20 +34,23 @@ lib_utf8proc = library(
 )
 
 # Main library
+inc_inktty = include_directories('.')
 lib_inktty = library(
 	'inktty',
 	[
-		'inktty/events/events.cpp',
 		'inktty/gfx/color.cpp',
 		'inktty/gfx/display.cpp',
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/matrix.cpp',
+		'inktty/term/events.cpp',
 		'inktty/term/pty.cpp',
+		'inktty/term/vt100.cpp',
+		'inktty/utils/geometry.cpp',
 		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
 	],
 	include_directories: [inc_inktty, inc_utf8proc],
-	dependencies: [dep_freetype],
+	dependencies: [dep_freetype, dep_vtparse],
 	link_with: [lib_utf8proc]
 )
 
@@ -62,7 +65,7 @@ exe_test_utils_utf8 = executable(
     dependencies: [dep_foxenunit],
     link_with: [lib_inktty],
     install: false)
-test('test_utils', exe_test_utils_utf8)
+test('test_utils_utf8', exe_test_utils_utf8)
 
 # SDL
 dep_threads = dependency('threads')
@@ -72,7 +75,8 @@ if dep_sdl.found()
 		'inktty_sdl',
 		[
 			'inktty/backends/sdl.cpp',
-			'inktty/main_sdl.cpp'
+			'inktty/backends/kbdstdin.cpp',
+			'inktty/main_sdl.cpp',
 		],
 		include_directories: inc_inktty,
 		link_with: [lib_inktty],
@@ -85,7 +89,8 @@ exe_inktty_fbdev = executable(
 	'inktty_fbdev',
 	[
 		'inktty/backends/fbdev.cpp',
-		'inktty/main_fbdev.cpp'
+		'inktty/backends/kbdstdin.cpp',
+		'inktty/main_fbdev.cpp',
 	],
 	include_directories: inc_inktty,
 	link_with: [lib_inktty],
