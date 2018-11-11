@@ -16,8 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#ifndef INKTTY_EVENTS_EVENTS_HPP
-#define INKTTY_EVENTS_EVENTS_HPP
+#ifndef INKTTY_TERM_EVENTS_HPP
+#define INKTTY_TERM_EVENTS_HPP
 
 #include <cstddef>
 #include <cstdint>
@@ -29,26 +29,25 @@ namespace inktty {
 struct EventSource;
 
 struct Event {
+	/**
+	 * Number of bytes that can be stored in the data buffer.
+	 */
+	static constexpr size_t BUF_SIZE = 1024;
+
 	enum class Type {
 		/**
 		 * No event happened.
 		 */
 		NONE,
 
-		/**
-		 * A key is being held down on the keyboard.
-		 */
 		KEYBD_KEY_DOWN,
 
-		/**
-		 * A key is being released on the keyboard.
-		 */
 		KEYBD_KEY_UP,
 
 		/**
-		 * A key has been held down and was released on the keyboard.
+		 * Text has been read from the keyboard.
 		 */
-		KEYBD_KEY_PRESS,
+		TEXT_INPUT,
 
 		/**
 		 * A mouse button was pressed.
@@ -83,12 +82,7 @@ struct Event {
 		/**
 		 * Output was received from the child
 		 */
-		CHILD_OUTPUT,
-
-		/**
-		 * The child process is ready to receive more data.
-		 */
-		CHILD_INPUT
+		CHILD_OUTPUT
 	};
 
 	struct Keyboard {
@@ -101,7 +95,7 @@ struct Event {
 		/**
 		 * Untranslated keycode.
 		 */
-		uint32_t keycode;
+		uint32_t scancode;
 
 		/**
 		 * True if the shift key is pressed at the same time.
@@ -146,10 +140,17 @@ struct Event {
 
 	struct Child {
 		/**
-		 * Number of bytes that can be stored in the data buffer.
+		 * Number of bytes received from the child process.
 		 */
-		static constexpr size_t BUF_SIZE = 1024;
+		size_t buf_len;
 
+		/**
+		 * Data received from the child process.
+		 */
+		uint8_t buf[BUF_SIZE];
+	};
+
+	struct Text {
 		/**
 		 * Number of bytes received from the child process.
 		 */
@@ -166,6 +167,7 @@ struct Event {
 		Keyboard keybd;
 		Mouse mouse;
 		Child child;
+		Text text;
 	} data;
 
 	/**
@@ -183,8 +185,8 @@ struct Event {
 	 * without any event happening in the meantime this function returns -1.
 	 * @return the
 	 */
-	static int wait(const std::vector<EventSource *> &sources,
-	                       Event &event, int last_source = -1, int timeout = -1);
+	static int wait(const std::vector<EventSource *> &sources, Event &event,
+	                int last_source = -1, int timeout = -1);
 };
 
 /**
@@ -197,7 +199,7 @@ struct EventSource {
 	 * Poll mode that should be used to read from the device. Values may be
 	 * combined via bit-wise OR.
 	 */
-	enum PollMode { poll_in = 1, poll_out = 2, poll_err = 4 };
+	enum PollMode { PollNone = 0, PollIn = 1, PollOut = 2, PollErr = 4 };
 
 	/**
 	 * Virtual destructor.
@@ -221,4 +223,4 @@ struct EventSource {
 };
 }  // namespace inktty
 
-#endif /* INKTTY_EVENTS_EVENTS_HPP */
+#endif /* INKTTY_TERM_EVENTS_HPP */

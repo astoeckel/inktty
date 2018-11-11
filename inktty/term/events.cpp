@@ -20,7 +20,7 @@
 
 #include <poll.h>
 
-#include <inktty/events/events.hpp>
+#include <inktty/term/events.hpp>
 
 namespace inktty {
 
@@ -50,10 +50,10 @@ int Event::wait(const std::vector<EventSource *> &sources, Event &event,
 
 		// Write the requested events
 		const EventSource::PollMode mode = src->event_fd_poll_mode();
-		if (mode & EventSource::poll_in) {
+		if (mode & EventSource::PollIn) {
 			fd.events |= POLLIN;
 		}
-		if (mode & EventSource::poll_out) {
+		if (mode & EventSource::PollOut) {
 			fd.events |= POLLOUT;
 		}
 
@@ -72,15 +72,15 @@ int Event::wait(const std::vector<EventSource *> &sources, Event &event,
 		}
 
 		if (fds[j].revents & POLLOUT) {
-			if (sources[i]->event_get(EventSource::poll_out, event)) {
+			if (sources[i]->event_get(EventSource::PollOut, event)) {
 				return i;
 			}
 		} else if (fds[j].revents & POLLIN) {
-			if (sources[i]->event_get(EventSource::poll_in, event)) {
+			if (sources[i]->event_get(EventSource::PollIn, event)) {
 				return i;
 			}
 		} else if (fds[j].revents & POLLNVAL || fds[j].revents & POLLHUP) {
-			if (sources[i]->event_get(EventSource::poll_err, event)) {
+			if (sources[i]->event_get(EventSource::PollErr, event)) {
 				return i;
 			}
 		}
