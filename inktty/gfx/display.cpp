@@ -108,14 +108,6 @@ private:
 			const size_t o1 = y * m_stride / sizeof(RGBA) + r.x1;
 
 			// Compute the source and target pointers
-/*			RGBA *p_tar0 = (RGBA *)__builtin_assume_aligned(p_tar_s + o0, 16U);
-			RGBA *p_tar1 = (RGBA *)__builtin_assume_aligned(p_tar_s + o1, 16U);
-			const RGBA *p_bg =
-			    (const RGBA *)__builtin_assume_aligned(p_bg_s + o0, 16U);
-			const RGBA *p_mg =
-			    (const RGBA *)__builtin_assume_aligned(p_mg_s + o0, 16U);
-			const RGBA *p_fg =
-			    (const RGBA *)__builtin_assume_aligned(p_fg_s + o0, 16U);*/
 			RGBA *p_tar0 = p_tar_s + o0;
 			RGBA *p_tar1 = p_tar_s + o1;
 			const RGBA *p_bg = p_bg_s + o0;
@@ -129,12 +121,6 @@ private:
 				r = (r * (255 - a)) / 255 + p_mg->r;
 				g = (g * (255 - a)) / 255 + p_mg->g;
 				b = (b * (255 - a)) / 255 + p_mg->b;
-
-				// Blend the middleground with the foreground
-/*				a = p_fg->a;
-				r = (r * (255 - a)) / 255 + p_fg->r;
-				g = (g * (255 - a)) / 255 + p_fg->g;
-				b = (b * (255 - a)) / 255 + p_fg->b;*/
 
 				// Store the result
 				*p = RGBA(r, g, b);
@@ -240,10 +226,19 @@ public:
 		for (size_t y = size_t(tar.y0); y < size_t(tar.y1); y++) {
 			RGBA *ptar = p + (m_stride * y) / sizeof(RGBA) + tar.x0;
 			const uint8_t *psrc = mask + stride * (y - tar.y0);
-			for (size_t x = 0; x < w; x++) {
-				const uint16_t a = psrc[x];
-				if (a > 0) {
-					ptar[x] = RGBA(c.r * a / 255, c.g * a / 255, c.b * a / 255, a);
+			if (mode == DrawMode::Write) {
+				for (size_t x = 0; x < w; x++) {
+					const uint16_t a = psrc[x];
+					if (a > 0) {
+						ptar[x] = RGBA(c.r * a / 255, c.g * a / 255, c.b * a / 255, a);
+					}
+				}
+			} else if (mode == DrawMode::Erase) {
+				for (size_t x = 0; x < w; x++) {
+					const uint16_t a = psrc[x];
+					if (a > 0) {
+						ptar[x] = RGBA(0, 0, 0, 0);
+					}
 				}
 			}
 		}

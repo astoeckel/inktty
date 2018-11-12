@@ -106,7 +106,7 @@ public:
 		 * operation. This (to some degree) allows to remove overlapping shapes
 		 * without having to re-render large parts of the screen.
 		 */
-		Remove
+		Erase
 	};
 
 	/**
@@ -242,9 +242,7 @@ public:
 	 * also determines the width/height of the source image.
 	 */
 	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
-	          const Rect r,
-
-	          DrawMode mode = DrawMode::Write) override;
+	          const Rect r, DrawMode mode = DrawMode::Write) override;
 
 	/**
 	 * Fills the specified rectangle with the given solid colour.
