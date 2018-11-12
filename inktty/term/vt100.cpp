@@ -42,20 +42,7 @@ private:
 	vtparse_t m_vtparse;
 	Style m_style;
 
-	void update_cursor(int &row, int &col) {
-		// Update the cursor location, scroll if necessary
-		if (col >= int(m_matrix.cols())) {
-			col = 0;
-			row++;
-		}
-		if (row >= int(m_matrix.rows())) {
-			m_matrix.scroll();
-			(row)--;
-		}
-		m_matrix.set_cursor_position(row, col);
-	}
-
-	bool handle_execute(char ch, int &row, int &col) {
+	bool handle_execute(char ch) {
 		switch (ch) {
 			case 0x00:
 			case 0x01:
@@ -70,25 +57,24 @@ private:
 				return true;
 			case 0x08:
 				// Backspace. Go to the previous column.
-				if (col > 0) {
-					(col)--;
-				}
+				m_matrix.move_rel(0, -1);
 				return true;
 			case 0x09:
 				// Horizontal tab. TODO: Implement proper tabs
-				(col) = (((col) + 8) / 8) * 8;
+				m_matrix.move_rel(
+				    0, ((m_matrix.col() + 8) / 8) * 8 - m_matrix.col(), true);
 				return true;
 			case 0x0A:
-				(row)++;
+				m_matrix.move_rel(1, 0, true);
 				return true;
 			case 0x0B:
 			case 0x0C:
 				// Vertical tab, form feed. Go to next line and column.
 				// This is what gnome-terminal seems to do
-				(row)++, (col)++;
+				m_matrix.move_rel(1, 1, true);
 				return true;
 			case 0x0D:
-				(col) = 0;
+				m_matrix.move_abs(m_matrix.row(), 1);
 				return true;
 			case 0x0E:
 			case 0x0F:
@@ -119,20 +105,9 @@ private:
 		}
 	}
 
-	void handle_codepoint(uint32_t codepoint, bool replaces_last, int &row,
-	                      int &col) {
-		// "replaces_last" indicates that the current codepoint
-		// replaces the last one
-		if (replaces_last && col > 0) {
-			col--;
-		}
-		m_matrix.set_cell(row, col, codepoint, m_style);
-		col++;
-		update_cursor(row, col);
-	}
+	void handle_codepoint(uint32_t codepoint, bool replaces_last) {}
 
-	void handle_print(const uint8_t *begin, const uint8_t *end, int &row,
-	                  int &col) {
+	void handle_print(const uint8_t *begin, const uint8_t *end) {
 		UTF8Decoder::Status res;
 		for (uint8_t const *data = begin; data < end; data++) {
 			if ((res = m_utf8.feed(*data))) {
@@ -140,12 +115,13 @@ private:
 					// TODO
 					continue;
 				}
-				handle_codepoint(res.codepoint, res.replaces_last, row, col);
+				m_matrix.write(res.codepoint, m_style, res.replaces_last);
 			}
 		}
 	}
 
-	bool read_sgr_color(Color &c, const int *params, int num_params, int *i, int offs, int color_offs) {
+	bool read_sgr_color(Color &c, const int *params, int num_params, int *i,
+	                    int offs, int color_offs) {
 		const int *pp = &params[*i];
 		const int p0 = pp[0] - offs;
 		const int n_params_rem = num_params - *i;
@@ -213,37 +189,55 @@ private:
 			} else if (p == 29) {
 				m_style.strikethrough = false;
 			} else if (p >= 30 && p <= 38) {
-				if (!read_sgr_color(m_style.fg, params, num_params, &i, 30, m_style.bold ? 8 : 0)) {
+				if (!read_sgr_color(m_style.fg, params, num_params, &i, 30,
+				                    m_style.bold ? 8 : 0)) {
 					return;
 				}
+				m_style.default_fg = false;
 			} else if (p == 39) {
+				m_style.default_fg = true;
 				m_style.fg = Color(7);
 			} else if (p >= 40 && p <= 48) {
-				m_style.transparent = false;
-				if (!read_sgr_color(m_style.bg, params, num_params, &i, 40, 0)) {
+				if (!read_sgr_color(m_style.bg, params, num_params, &i, 40,
+				                    0)) {
 					return;
 				}
+				m_style.default_bg = false;
 			} else if (p == 49) {
-				m_style.transparent = true;
+				m_style.default_bg = true;
 				m_style.bg = Color(0);
 			} else if (p >= 90 && p <= 97) {
-				if (!read_sgr_color(m_style.fg, params, num_params, &i, 90, 8)) {
+				if (!read_sgr_color(m_style.fg, params, num_params, &i, 90,
+				                    8)) {
 					return;
 				}
+				m_style.default_fg = true;
 			} else if (p >= 100 && p <= 107) {
-				m_style.transparent = false;
-				if (!read_sgr_color(m_style.bg, params, num_params, &i, 100, 8)) {
+				if (!read_sgr_color(m_style.bg, params, num_params, &i, 100,
+				                    8)) {
 					return;
 				}
+				m_style.default_bg = true;
 			}
 			i++;
 		}
 	}
 
+	void handle_esc_dispatch(char ch, const int *params, int num_params,
+	                         const uint8_t *intermediate_chars,
+	                         int num_intermediate_chars) {
+		switch (ch) {
+			case 'c':
+				reset();
+				break;
+			default:
+				break;
+		}
+	}
+
 	void handle_csi_dispatch(char ch, const int *params, int num_params,
 	                         const uint8_t *intermediate_chars,
-	                         int num_intermediate_chars, int &row, int &col) {
-		bool needs_cursor_update = false;
+	                         int num_intermediate_chars) {
 		switch (ch) {
 			case 'A':
 			case 'B':
@@ -252,32 +246,25 @@ private:
 				const int n = num_params ? params[0] : 1;
 				const int dir_row = (ch == 'A') ? -n : ((ch == 'B' ? n : 0));
 				const int dir_col = (ch == 'C') ? -n : ((ch == 'D' ? n : 0));
-				row = clip<int>(row + dir_row, 0, m_matrix.rows() - 1);
-				col = clip<int>(col + dir_col, 0, m_matrix.cols() - 1);
-				needs_cursor_update = true;
+				m_matrix.move_rel(Point(dir_col, dir_row));
 				break;
 			}
 			case 'E':
 			case 'F': {
-				const int n = num_params ? params[0] - 1 : 1;
+				const int n = num_params ? params[0] : 1;
 				const int dir_row = (ch == 'E') ? n : -n;
-				row = clip<int>(row + dir_row, 0, m_matrix.rows() - 1);
-				col = 0;
-				needs_cursor_update = true;
+				m_matrix.move_rel(Point(0, dir_row));
 				break;
 			}
 			case 'G': {
-				col = num_params ? params[0] - 1 : 0;
-				needs_cursor_update = true;
+				m_matrix.col(num_params ? params[0] : 1);
 				break;
 			}
 			case 'H':
 			case 'f': {
-				const int n = (num_params > 0) ? (params[0] - 1) : 0;
-				const int m = (num_params > 1) ? (params[1] - 1) : 0;
-				row = clip<int>(n, 0, m_matrix.rows() - 1);
-				col = clip<int>(m, 0, m_matrix.cols() - 1);
-				needs_cursor_update = true;
+				const int n = (num_params > 0) ? params[0] : 1;
+				const int m = (num_params > 1) ? params[1] : 1;
+				m_matrix.move_abs(n, m);
 				break;
 			}
 			case 'J':
@@ -286,7 +273,7 @@ private:
 				break;
 			case 'S':
 			case 'T':
-				/* Scroll: TODO */
+				m_matrix.scroll(n, m);
 				break;
 			case 'm':
 				handle_sgr(params, num_params);
@@ -304,9 +291,6 @@ private:
 				/* Reset cursor location */
 				break;
 		}
-		if (needs_cursor_update) {
-			update_cursor(row, col);
-		}
 	}
 
 public:
@@ -320,9 +304,6 @@ public:
 	}
 
 	void write(uint8_t *buf, unsigned int buf_len) {
-		// Fetch the current cursor position
-		int row = m_matrix.cursor_row(), col = m_matrix.cursor_col();
-
 		while (true) {
 			unsigned int n_read = vtparse_parse(&m_vtparse, buf, buf_len);
 			if (!vtparse_has_event(&m_vtparse)) {
@@ -330,21 +311,22 @@ public:
 			}
 			switch (m_vtparse.action) {
 				case VTPARSE_ACTION_EXECUTE:
-					if (handle_execute(m_vtparse.ch, row, col)) {
-						update_cursor(row, col);
-					}
+					handle_execute(m_vtparse.ch);
 					break;
 				case VTPARSE_ACTION_PRINT:
-					handle_print(m_vtparse.data_begin, m_vtparse.data_end, row,
-					             col);
-					break;
-				case VTPARSE_ACTION_CSI_DISPATCH:
-					handle_csi_dispatch(
-					    m_vtparse.ch, m_vtparse.params, m_vtparse.num_params,
-					    m_vtparse.intermediate_chars,
-					    m_vtparse.num_intermediate_chars, row, col);
+					handle_print(m_vtparse.data_begin, m_vtparse.data_end);
 					break;
 				case VTPARSE_ACTION_ESC_DISPATCH:
+					handle_esc_dispatch(m_vtparse.ch, m_vtparse.params,
+					                    m_vtparse.num_params,
+					                    m_vtparse.intermediate_chars,
+					                    m_vtparse.num_intermediate_chars);
+					break;
+				case VTPARSE_ACTION_CSI_DISPATCH:
+					handle_csi_dispatch(m_vtparse.ch, m_vtparse.params,
+					                    m_vtparse.num_params,
+					                    m_vtparse.intermediate_chars,
+					                    m_vtparse.num_intermediate_chars);
 					break;
 				case VTPARSE_ACTION_PUT:
 					break;

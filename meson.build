@@ -40,8 +40,9 @@ lib_inktty = library(
 	[
 		'inktty/gfx/display.cpp',
 		'inktty/gfx/font.cpp',
-		'inktty/gfx/matrix.cpp',
+		'inktty/gfx/matrix_renderer.cpp',
 		'inktty/term/events.cpp',
+		'inktty/term/matrix.cpp',
 		'inktty/term/pty.cpp',
 		'inktty/term/vt100.cpp',
 		'inktty/utils/color.cpp',
@@ -65,7 +66,15 @@ exe_test_utils_utf8 = executable(
     dependencies: [dep_foxenunit],
     link_with: [lib_inktty],
     install: false)
+exe_test_term_matrix = executable(
+    'test_term_matrix',
+    'test/term/test_matrix.cpp',
+    include_directories: [inc_inktty],
+    dependencies: [dep_foxenunit],
+    link_with: [lib_inktty],
+    install: false)
 test('test_utils_utf8', exe_test_utils_utf8)
+test('test_term_matrix', exe_test_term_matrix)
 
 # SDL
 dep_threads = dependency('threads')

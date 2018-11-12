@@ -19,10 +19,11 @@
 #include <iostream>
 
 #include <inktty/gfx/font.hpp>
-#include <inktty/gfx/matrix.hpp>
+#include <inktty/gfx/matrix_renderer.hpp>
 #include <inktty/inktty.hpp>
 #include <inktty/term/pty.hpp>
 #include <inktty/term/vt100.hpp>
+#include <inktty/term/matrix.hpp>
 #include <inktty/utils/utf8.hpp>
 
 namespace inktty {
@@ -41,6 +42,7 @@ private:
 	Display &m_display;
 	Font m_font;
 	Matrix m_matrix;
+	MatrixRenderer m_matrix_renderer;
 	PTY m_pty;
 	VT100 m_vt100;
 
@@ -49,8 +51,9 @@ public:
 	    : m_event_sources(event_sources),
 	      m_display(display),
 	      m_font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96),
-	      m_matrix(m_font, m_display, 10 * 64),
-	      m_pty(m_matrix.rows(), m_matrix.cols(), {"/usr/bin/bash"}),
+	      m_matrix(),
+	      m_matrix_renderer(m_font, m_display, m_matrix, 10 * 64),
+	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/usr/bin/bash"}),
 	      m_vt100(m_matrix) {
 		m_event_sources.push_back(&m_pty);
 	}
@@ -113,7 +116,7 @@ public:
 					case Event::Type::CHILD_OUTPUT:
 						m_vt100.write(event.data.child.buf,
 						              event.data.child.buf_len);
-						m_matrix.draw();
+						m_matrix_renderer.draw();
 						break;
 				}
 			}

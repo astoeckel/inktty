@@ -1,5 +1,5 @@
 /*
- *  inktty -- Terminal emulator optimized for epaper displays
+ *  libfoxenbitstream -- Tiny, inflexible bitstream reader
  *  Copyright (C) 2018  Andreas Stöckel
  *
  *  This program is free software: you can redistribute it and/or modify
@@ -16,39 +16,21 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-/**
- * @file ansi.hpp
- *
- * The VT100 class reads the incoming byte-stream, UTF-8 decodes it an writes
- * it to the text memory matrix.
- *
- * @author Andreas Stöckel
- */
-
-#ifndef INKTTY_TERM_VT100_HPP
-#define INKTTY_TERM_VT100_HPP
-
-#include <cstdint>
-#include <cstddef>
-#include <memory>
-
+#include <foxen/unittest.h>
 #include <inktty/term/matrix.hpp>
 
-namespace inktty {
+using namespace inktty;
 
-class VT100 {
-private:
-	class Impl;
-	std::unique_ptr<Impl> m_impl;
+void test_matrix_simple() {
+	Matrix matrix;
+	matrix.write('A', Style{});
 
-public:
-	VT100(Matrix &matrix);
-	~VT100();
+	std::vector<Matrix::CellUpdate> updates;
+	matrix.commit(updates);
+	EXPECT_EQ(2U, updates.size());
+}
 
-	void reset();
-	void write(uint8_t *buf, unsigned int buf_len);
-};
-
-}  // namespace inktty
-
-#endif /* INKTTY_TERM_VT100_HPP */
+int main() {
+	RUN(test_matrix_simple);
+	DONE;
+}
