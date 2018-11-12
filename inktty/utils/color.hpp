@@ -179,7 +179,7 @@ public:
 	 * @param p is the palette from which the colour should be looked up if in
 	 * indexed mode.
 	 */
-	const RGBA &rgb(const Palette &p) {
+	const RGBA &rgb(const Palette &p) const {
 		switch (m_mode) {
 			case Mode::Indexed:
 				return p[m_idx];
