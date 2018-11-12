@@ -85,7 +85,21 @@ public:
 						} else if (keybd.scancode == 40 || keybd.scancode == 88) {
 							buf[buf_ptr++] = '\n';
 						} else if (keybd.scancode == 82) {
-							
+							buf[buf_ptr++] = 0x1B;
+							buf[buf_ptr++] = 0x5B;
+							buf[buf_ptr++] = 0x41;
+						} else if (keybd.scancode == 81) {
+							buf[buf_ptr++] = 0x1B;
+							buf[buf_ptr++] = 0x5B;
+							buf[buf_ptr++] = 0x42;
+						} else if (keybd.scancode == 80) {
+							buf[buf_ptr++] = 0x1B;
+							buf[buf_ptr++] = 0x5B;
+							buf[buf_ptr++] = 0x44;
+						} else if (keybd.scancode == 79) {
+							buf[buf_ptr++] = 0x1B;
+							buf[buf_ptr++] = 0x5B;
+							buf[buf_ptr++] = 0x43;
 						}
 						if (buf_ptr) {
 							m_pty.write(buf, buf_ptr);
