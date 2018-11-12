@@ -57,7 +57,7 @@ private:
 
 	Rect get_coords(size_t row, size_t col);
 
-	void draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
+	Rect draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 	               bool erase);
 
 public:

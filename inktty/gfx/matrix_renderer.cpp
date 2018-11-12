@@ -125,7 +125,7 @@ Rect MatrixRenderer::get_coords(size_t row, size_t col) {
 	__builtin_unreachable();
 }
 
-void MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase) {
+Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase) {
 	/* Fetch foreground and background colour */
 	RGBA fg = cell.style.fg.rgb(m_palette);
 	RGBA bg = cell.style.bg.rgb(m_palette);
@@ -149,8 +149,7 @@ void MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 		               gr, erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
 	}
 
-	// Commit the cell
-	m_display.commit(r.grow(gr), Display::CommitMode::Full);
+	return r.grow(gr);
 }
 
 void MatrixRenderer::draw(bool redraw) {
@@ -172,8 +171,9 @@ void MatrixRenderer::draw(bool redraw) {
 		Matrix::Cell cell_old;
 		for (size_t i = 0; i < m_rows; i++) {
 			for (size_t j = 0; j < m_cols; j++) {
-				draw_cell(i, j, cell_old, true);
-				draw_cell(i, j, cells[i][j], false);
+				const Rect r1 = draw_cell(i, j, cell_old, true);
+				const Rect r2 = draw_cell(i, j, cells[i][j], false);
+				m_display.commit(r1.grow(r2), Display::CommitMode::Full);
 			}
 		}
 	} else {
@@ -181,8 +181,9 @@ void MatrixRenderer::draw(bool redraw) {
 		m_matrix.commit(updates);
 		for (size_t i = 0; i < updates.size(); i++) {
 			const Matrix::CellUpdate &u = updates[i];
-			draw_cell(u.pos.y - 1, u.pos.x - 1, u.old, true);
-			draw_cell(u.pos.y - 1, u.pos.x - 1, u.current, false);
+			const Rect r1 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.old, true);
+			const Rect r2 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.current, false);
+			m_display.commit(r1.grow(r2), Display::CommitMode::Full);
 		}
 	}
 
