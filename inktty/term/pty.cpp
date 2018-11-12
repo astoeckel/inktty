@@ -120,7 +120,7 @@ static int spawn_child_in_pty(int pty_master, int pty_slave, unsigned int rows,
 	std::string env_term = term_prefix + term;
 	envp.push_back(const_cast<char *>(env_term.c_str()));
 	for (size_t i = 0; environ[i]; i++) {
-		if (!term_prefix.compare(0, 5, environ[i])) {
+		if (!std::string(term_prefix).compare(0, 5, term_prefix)) {
 			continue; /* Skip environment variables starting with TERM= */
 		}
 		envp.push_back(environ[i]);
