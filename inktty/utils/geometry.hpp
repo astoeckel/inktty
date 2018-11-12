@@ -49,6 +49,24 @@ struct Point {
 	 * @param bounds is the original bounding rectangle.
 	 */
 	Point rotate(const Rect &bounds, int orientation) const;
+
+	friend Point operator +(const Point &p, const Point &q) {
+		return Point(p.x + q.x, p.y + q.y);
+	}
+
+	friend Point operator -(const Point &p, const Point &q) {
+		return Point(p.x - q.x, p.y - q.y);
+	}
+
+	Point& operator+=(const Point &q) {
+		x += q.x, y += q.y;
+		return *this;
+	}
+
+	Point& operator-=(const Point &q) {
+		x -= q.x, y -= q.y;
+		return *this;
+	}
 };
 
 struct Rect {
