@@ -257,8 +257,10 @@ void Matrix::scroll(int n) {
 			          Cell());
 		} else {
 			for (int x = 1; x <= m_size.x; x++) {
-				Cell old = m_cells[y_src - 1][x - 1];
-				set(old.glyph, old.style, Point{x, y_tar});
+				const Cell &c_src = m_cells[y_src - 1][x - 1];
+				Cell &c_tar = m_cells[y_tar - 1][x - 1];
+				c_tar = c_src;
+				c_tar.dirty = true;
 			}
 		}
 	}

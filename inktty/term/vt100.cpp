@@ -272,9 +272,12 @@ private:
 				/* Erase: TODO */
 				break;
 			case 'S':
-			case 'T':
-				m_matrix.scroll(n, m);
+			case 'T': {
+				const int n = params[0] ? params[0] : 1;
+				const int dir = (ch == 'S') ? n : -n;
+				m_matrix.scroll(dir);
 				break;
+			}
 			case 'm':
 				handle_sgr(params, num_params);
 				break;
