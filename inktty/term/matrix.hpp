@@ -290,9 +290,9 @@ public:
 	/**
 	 * Moves the cursor relatively to the given delta.
 	 */
-	void move_rel(Point delta, bool wrap=false);
+	void move_rel(Point delta, bool wrap=false, const Style &style = Style());
 
-	void move_rel(int row, int col, bool wrap = false) {
+	void move_rel(int row, int col, bool wrap = false, const Style &style = Style()) {
 		move_rel(Point(col, row), wrap);
 	}
 
@@ -322,15 +322,22 @@ public:
 	void set(uint32_t glyph, const Style &style, Point pos);
 
 	/**
+	 * Fills the screen with the given glyph and style from the given cursor
+	 * location to the given cursor location.
+	 */
+	void fill(uint32_t glyph, const Style &style, const Point &from, const Point &to);
+
+	/**
 	 * Writes to the matrix at the given cursor location. Advances the cursor
 	 * location if necessary and
 	 */
 	void write(uint32_t glyph, const Style &style, bool replaces_last = false);
 
 	/**
-	 * Scrolls the entire view one line up or down.
+	 * Scrolls the entire view one line up or down. Inserts a blank row with the
+	 * given style.
 	 */
-	void scroll(int n);
+	void scroll(int n, const Style &style = Style());
 
 	/**
 	 * Commits all updates to the matrix. Writes the status of all the cells

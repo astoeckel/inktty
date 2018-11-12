@@ -62,16 +62,16 @@ private:
 			case 0x09:
 				// Horizontal tab. TODO: Implement proper tabs
 				m_matrix.move_rel(
-				    0, ((m_matrix.col() + 8) / 8) * 8 - m_matrix.col(), true);
+				    0, ((m_matrix.col() + 8) / 8) * 8 - m_matrix.col(), true, m_style);
 				return true;
 			case 0x0A:
-				m_matrix.move_rel(1, 0, true);
+				m_matrix.move_rel(1, 0, true, m_style);
 				return true;
 			case 0x0B:
 			case 0x0C:
 				// Vertical tab, form feed. Go to next line and column.
 				// This is what gnome-terminal seems to do
-				m_matrix.move_rel(1, 1, true);
+				m_matrix.move_rel(1, 1, true, m_style);
 				return true;
 			case 0x0D:
 				m_matrix.move_abs(m_matrix.row(), 1);
@@ -239,43 +239,80 @@ private:
 	                         const uint8_t *intermediate_chars,
 	                         int num_intermediate_chars) {
 		switch (ch) {
-			case 'A':
-			case 'B':
-			case 'C':
-			case 'D': {
-				const int n = num_params ? params[0] : 1;
-				const int dir_row = (ch == 'A') ? -n : ((ch == 'B' ? n : 0));
-				const int dir_col = (ch == 'C') ? -n : ((ch == 'D' ? n : 0));
-				m_matrix.move_rel(Point(dir_col, dir_row));
+			case 'A': /* Move cursor up */
+				m_matrix.move_rel(-std::max(1, params[0]), 0);
 				break;
-			}
+			case 'e':
+			case 'B': /* Move cursor down */
+				m_matrix.move_rel(std::max(1, params[0]), 0);
+				break;
+			case 'a':
+			case 'C': /* Move cursor right */
+				m_matrix.move_rel(0, std::max(1, params[0]));
+				break;
+			case 'D': /* Move cursor left */
+				m_matrix.move_rel(0, -std::max(1, params[0]));
+				break;
 			case 'E':
-			case 'F': {
+			case 'F': { /* Move cursor n rows up/down */
 				const int n = num_params ? params[0] : 1;
 				const int dir_row = (ch == 'E') ? n : -n;
 				m_matrix.move_rel(Point(0, dir_row));
 				break;
 			}
-			case 'G': {
+			case 'G': { /* Set colum */
 				m_matrix.col(num_params ? params[0] : 1);
 				break;
 			}
 			case 'H':
-			case 'f': {
+			case 'f': { /* Set absolute row/column */
 				const int n = (num_params > 0) ? params[0] : 1;
 				const int m = (num_params > 1) ? params[1] : 1;
 				m_matrix.move_abs(n, m);
 				break;
 			}
-			case 'J':
-			case 'K':
-				/* Erase: TODO */
+			case 'J': { /* Clear screen */
+				switch (params[0]) {
+					case 0:
+						m_matrix.fill(0, m_style, m_matrix.pos(), m_matrix.size());
+						break;
+					case 1:
+						m_matrix.fill(0, m_style, Point{1, 1}, m_matrix.pos());
+						break;
+					case 2:
+						m_matrix.fill(0, m_style, Point{1, 1}, m_matrix.size());
+						break;
+				}
 				break;
+			}
+			case 'K': { /* Clear line */
+				const int row = m_matrix.row();
+				const int col0 = m_matrix.col(), col1 = m_matrix.size().x;
+				switch (params[0]) {
+					case 0:
+						m_matrix.fill(0, m_style, {row, col0}, {row, col1});
+						break;
+					case 1:
+						m_matrix.fill(0, m_style, {row, 1}, {row, col0});
+						break;
+					case 2:
+						m_matrix.fill(0, m_style, {row, 1}, {row, col1});
+						break;
+				}
+				break;
+			}
+			case 'P': {/* Clear line */
+/*				const int row = m_matrix.row();
+				const int col0 = m_matrix.col(), col1 = m_matrix.size().x;
+				m_matrix.fill(0, m_style, {col0, row}, {col0 + args});
+				break;*/
+				break;
+			}
 			case 'S':
 			case 'T': {
 				const int n = params[0] ? params[0] : 1;
 				const int dir = (ch == 'S') ? n : -n;
-				m_matrix.scroll(dir);
+				m_matrix.scroll(dir, m_style);
 				break;
 			}
 			case 'm':

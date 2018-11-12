@@ -184,7 +184,7 @@ void Matrix::resize(int rows, int cols) {
 	m_update_bounds.y1 = std::min(m_update_bounds.y1, rows);
 }
 
-void Matrix::move_rel(Point delta, bool wrap) {
+void Matrix::move_rel(Point delta, bool wrap, const Style &style) {
 	m_pos += delta;
 	if (wrap) {
 		while (m_pos.x > m_size.x) {
@@ -193,7 +193,7 @@ void Matrix::move_rel(Point delta, bool wrap) {
 		}
 		if (m_pos.y > m_size.y) {
 			const int n = m_pos.y - m_size.y;
-			scroll(n);
+			scroll(n, style);
 			m_pos.y -= n;
 		}
 	}
@@ -219,10 +219,22 @@ void Matrix::set(uint32_t glyph, const Style &style, Point pos) {
 		c.style = style;
 		c.dirty = true;
 
-		// Update the update bounds
+		// Grow the update bounds
 		extend_update_bounds(pos);
 	}
 }
+
+void Matrix::fill(uint32_t glyph, const Style &style, const Point &from, const Point &to) {
+	int row0 = from.y, row1 = to.y;
+	for (int row = row0; row <= row1; row++) {
+		int col0 = (row == row0) ? from.x : 1;
+		int col1 = (row == row1) ? to.x : m_size.x;
+		for (int col = col0; col <= col1; col++) {
+			set(glyph, style, Point{col, row});
+		}
+	}
+}
+
 
 void Matrix::write(uint32_t glyph, const Style &style, bool replaces_last) {
 	// If replaces_last is true, jump to the last write position
@@ -237,10 +249,10 @@ void Matrix::write(uint32_t glyph, const Style &style, bool replaces_last) {
 	m_pos_last = m_pos;
 
 	// Compute the next cursor location, scroll up if necessary
-	move_rel(Point(1, 0), true);
+	move_rel(Point(1, 0), true, style);
 }
 
-void Matrix::scroll(int n) {
+void Matrix::scroll(int n, const Style &style) {
 	// Abort if n == 0 (no-op)
 	if (n == 0) {
 		return;
@@ -253,8 +265,9 @@ void Matrix::scroll(int n) {
 	for (int y_tar = y0; y_tar <= y1; y_tar += dir) {
 		const int y_src = y_tar + n;
 		if (y_src < 1 || y_src > m_size.y) {
-			std::fill(m_cells[y_tar - 1].begin(), m_cells[y_tar - 1].end(),
-			          Cell());
+			Cell c;
+			c.style = style;
+			std::fill(m_cells[y_tar - 1].begin(), m_cells[y_tar - 1].end(), c);
 		} else {
 			for (int x = 1; x <= m_size.x; x++) {
 				const Cell &c_src = m_cells[y_src - 1][x - 1];
