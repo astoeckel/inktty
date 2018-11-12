@@ -194,6 +194,10 @@ public:
 		       (((m_mode == Mode::Indexed) && (m_idx == o.m_idx)) ||
 		        ((m_mode == Mode::RGB) && (m_rgb == o.m_rgb)));
 	}
+
+	bool operator!=(const Color &o) const {
+		return !((*this) == o);
+	}
 };
 
 }  // namespace inktty
