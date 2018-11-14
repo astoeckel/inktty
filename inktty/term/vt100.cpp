@@ -31,16 +31,61 @@ static T clip(T v, T min, T max) {
 	return (v < min) ? min : ((v > max) ? max : v);
 }
 
+static uint32_t DEC_SPECIAL_GRAPHICS_TABLE[] = {
+    0xA0,   /* (0x5F, 95) */
+    0x25C6, /* (0x60, 96) */
+    0x2592, /* (0x61, 97) */
+    0x2409, /* (0x62, 98) */
+    0x240C, /* (0x63, 99) */
+    0x240D, /* (0x64, 100) */
+    0x240A, /* (0x65, 101) */
+    0xB0,   /* (0x66, 102) */
+    0xB1,   /* (0x67, 103) */
+    0x2424, /* (0x68, 104) */
+    0x240B, /* (0x69, 105) */
+    0x2518, /* (0x6A, 106) */
+    0x2510, /* (0x6B, 107) */
+    0x250C, /* (0x6C, 108) */
+    0x2514, /* (0x6D, 109) */
+    0x253C, /* (0x6E, 110) */
+    0x23BA, /* (0x6F, 111) */
+    0x23BB, /* (0x70, 112) */
+    0x2500, /* (0x71, 113) */
+    0x23BC, /* (0x72, 114) */
+    0x23BD, /* (0x73, 115) */
+    0x251C, /* (0x74, 116) */
+    0x2524, /* (0x75, 117) */
+    0x2534, /* (0x76, 118) */
+    0x252C, /* (0x77, 119) */
+    0x2502, /* (0x78, 120) */
+    0x2264, /* (0x79, 121) */
+    0x2265, /* (0x7A, 122) */
+    0x3C0,  /* (0x7B, 123) */
+    0x2260, /* (0x7C, 124) */
+    0xA3,   /* (0x7D, 125) */
+    0xB7    /* (0x7E, 126) */
+};
+
+static uint8_t DEC_SPECIAL_GRAPHICS_TABLE_BEGIN = 0x5F;
+static uint8_t DEC_SPECIAL_GRAPHICS_TABLE_END = 0x7E;
+
 /******************************************************************************
  * Class VT100::Impl                                                          *
  ******************************************************************************/
 
 class VT100::Impl {
 private:
+	struct Mode {
+		bool dec_special_graphics;
+
+		Mode() : dec_special_graphics(false) {}
+	};
+
 	Matrix &m_matrix;
 	UTF8Decoder m_utf8;
 	vtparse_t m_vtparse;
 	Style m_style;
+	Mode m_mode;
 
 	bool handle_execute(char ch) {
 		switch (ch) {
@@ -115,6 +160,15 @@ private:
 					// TODO
 					continue;
 				}
+
+				/* Perform character substitutions */
+				if (m_mode.dec_special_graphics &&
+				    res.codepoint >= DEC_SPECIAL_GRAPHICS_TABLE_BEGIN &&
+				    res.codepoint <= DEC_SPECIAL_GRAPHICS_TABLE_END) {
+					res.codepoint = DEC_SPECIAL_GRAPHICS_TABLE
+					    [res.codepoint - DEC_SPECIAL_GRAPHICS_TABLE_BEGIN];
+				}
+
 				m_matrix.write(res.codepoint, m_style, res.replaces_last);
 			}
 		}
@@ -141,6 +195,43 @@ private:
 			}
 		}
 		return false;
+	}
+
+	void handle_esc_dispatch(char ch, const int *params, int num_params,
+	                         const uint8_t *intermediate_chars,
+	                         int num_intermediate_chars) {
+		/*		std::cout << "ESC dispatch \"";
+		        for (int i = 0; i < num_intermediate_chars; i++) {
+		            std::cout << (char)intermediate_chars[i];
+		        }
+		        for (int i = 0; i < num_params; i++) {
+		            if (i > 0) {
+		                std::cout << ";";
+		            }
+		            std::cout << params[i];
+		        }
+		        std::cout << (char)ch << "\"" << std::endl;*/
+
+		switch (ch) {
+			case 'c':
+				reset();
+				break;
+			case '0':
+				if (num_intermediate_chars == 1 &&
+				    intermediate_chars[0] == '(') {
+					m_mode.dec_special_graphics = true;
+				}
+				break;
+			case 'B':
+				if (num_intermediate_chars == 1 &&
+				    intermediate_chars[0] == '(') {
+					m_mode.dec_special_graphics = false;
+				}
+				break;
+			default:
+				// std::cout << "!!!! Unhandled ESC dispatch" << std::endl;
+				break;
+		}
 	}
 
 	void handle_sgr(const int *params, int num_params) {
@@ -220,18 +311,6 @@ private:
 				m_style.default_bg = true;
 			}
 			i++;
-		}
-	}
-
-	void handle_esc_dispatch(char ch, const int *params, int num_params,
-	                         const uint8_t *intermediate_chars,
-	                         int num_intermediate_chars) {
-		switch (ch) {
-			case 'c':
-				reset();
-				break;
-			default:
-				break;
 		}
 	}
 
