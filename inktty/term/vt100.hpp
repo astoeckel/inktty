@@ -28,8 +28,8 @@
 #ifndef INKTTY_TERM_VT100_HPP
 #define INKTTY_TERM_VT100_HPP
 
-#include <cstdint>
 #include <cstddef>
+#include <cstdint>
 #include <memory>
 
 #include <inktty/term/matrix.hpp>
@@ -46,7 +46,7 @@ public:
 	~VT100();
 
 	void reset();
-	void write(uint8_t *buf, unsigned int buf_len);
+	void write(uint8_t *in_buf, unsigned int in_buf_len);
 };
 
 }  // namespace inktty

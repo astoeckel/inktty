@@ -21,6 +21,8 @@
 #include <inktty/term/vt100.hpp>
 #include <inktty/utils/utf8.hpp>
 
+#include <iostream>
+
 namespace inktty {
 /******************************************************************************
  * Helper functions                                                           *
@@ -318,65 +320,84 @@ private:
 	void handle_csi_dispatch(char ch, const int *params, int num_params,
 	                         const uint8_t *intermediate_chars,
 	                         int num_intermediate_chars) {
+		/*		std::cout << "CSI dispatch \"";
+		        for (int i = 0; i < num_intermediate_chars; i++) {
+		            std::cout << (char)intermediate_chars[i];
+		        }
+		        for (int i = 0; i < num_params; i++) {
+		            if (i > 0) {
+		                std::cout << ";";
+		            }
+		            std::cout << params[i];
+		        }
+		        std::cout << (char)ch << "\"" << std::endl;*/
+
+		// Helper function for accessing parameters. Replaces unset parameters
+		// with the given minimum value; clamps set parameters to the minimum
+		// value
+		auto P = [&params, &num_params](int i, int min = 1) {
+			return (i >= num_params) ? min : std::max(min, params[i]);
+		};
+
+		const int crow = m_matrix.row(), ccol = m_matrix.col();
+		const int nrows = m_matrix.size().y, ncols = m_matrix.size().x;
 		switch (ch) {
 			case 'A': /* Move cursor up */
-				m_matrix.move_rel(-std::max(1, params[0]), 0);
+				m_matrix.move_rel(-P(0), 0);
 				break;
 			case 'e':
 			case 'B': /* Move cursor down */
-				m_matrix.move_rel(std::max(1, params[0]), 0);
+				m_matrix.move_rel(P(0), 0);
 				break;
 			case 'a':
 			case 'C': /* Move cursor right */
-				m_matrix.move_rel(0, std::max(1, params[0]));
+				m_matrix.move_rel(0, P(0));
 				break;
 			case 'D': /* Move cursor left */
-				m_matrix.move_rel(0, -std::max(1, params[0]));
+				m_matrix.move_rel(0, -P(0));
 				break;
 			case 'E':
 			case 'F': { /* Move cursor n rows up/down */
-				const int n = num_params ? params[0] : 1;
+				const int n = P(0);
 				const int dir_row = (ch == 'E') ? n : -n;
 				m_matrix.move_rel(Point(0, dir_row));
 				break;
 			}
 			case 'G': { /* Set colum */
-				m_matrix.col(num_params ? params[0] : 1);
+				m_matrix.col(P(0));
 				break;
 			}
+			case 'd': /* Set absolute row */
+				m_matrix.move_abs(P(0), ccol);
+				break;
 			case 'H':
-			case 'f': { /* Set absolute row/column */
-				const int n = (num_params > 0) ? params[0] : 1;
-				const int m = (num_params > 1) ? params[1] : 1;
-				m_matrix.move_abs(n, m);
+			case 'f': /* Set absolute row/column */
+				m_matrix.move_abs(P(0), P(1));
 				break;
-			}
 			case 'J': { /* Clear screen */
-				switch (params[0]) {
+				switch (P(0, 0)) {
 					case 0:
-						m_matrix.fill(0, m_style, m_matrix.pos(), m_matrix.size());
+						m_matrix.fill(0, m_style, {ccol, crow}, {ncols, nrows});
 						break;
 					case 1:
-						m_matrix.fill(0, m_style, Point{1, 1}, m_matrix.pos());
+						m_matrix.fill(0, m_style, {1, 1}, {ccol, crow});
 						break;
 					case 2:
-						m_matrix.fill(0, m_style, Point{1, 1}, m_matrix.size());
+						m_matrix.fill(0, m_style, {1, 1}, {ncols, nrows});
 						break;
 				}
 				break;
 			}
 			case 'K': { /* Clear line */
-				const int row = m_matrix.row();
-				const int col0 = m_matrix.col(), col1 = m_matrix.size().x;
-				switch (params[0]) {
+				switch (P(0, 0)) {
 					case 0:
-						m_matrix.fill(0, m_style, {row, col0}, {row, col1});
+						m_matrix.fill(0, m_style, {ccol, crow}, {ncols, crow});
 						break;
 					case 1:
-						m_matrix.fill(0, m_style, {row, 1}, {row, col0});
+						m_matrix.fill(0, m_style, {1, crow}, {ccol, crow});
 						break;
 					case 2:
-						m_matrix.fill(0, m_style, {row, 1}, {row, col1});
+						m_matrix.fill(0, m_style, {1, crow}, {ncols, crow});
 						break;
 				}
 				break;
@@ -387,25 +408,48 @@ private:
 			}
 			case 'S':
 			case 'T': {
-				const int n = params[0] ? params[0] : 1;
+				const int n = P(0);
 				const int dir = (ch == 'S') ? n : -n;
 				m_matrix.scroll(dir, m_style);
+				break;
+			}
+			case 'X': {  // Erase characters in line
+				const int n = P(0);
+				m_matrix.fill(0, m_style, {ccol, crow}, {ccol + n - 1, crow});
 				break;
 			}
 			case 'm':
 				handle_sgr(params, num_params);
 				break;
-			case 'i':
-				/* AUX ON/OFF. Not implemented */
+
+			case 'h':
+				if (num_intermediate_chars == 1 &&
+				    intermediate_chars[0] == '?') {
+					m_matrix.cursor_visible(true);
+				}
 				break;
-			case 'n':
-				/* Device status report. TODO */
+
+			case 'l':
+				if (num_intermediate_chars == 1 &&
+				    intermediate_chars[0] == '?') {
+					m_matrix.cursor_visible(false);
+				}
 				break;
-			case 's':
-				/* Save cursor location */
-				break;
-			case 'r':
-				/* Reset cursor location */
+
+				/*			case 'i':
+				                // AUX ON/OFF. Not implemented
+				                break;
+				            case 'n':
+				                // Device status report.
+				                break;
+				            case 's':
+				                // Save cursor location
+				                break;
+				            case 'r':
+				                // Reset cursor location
+				                break;*/
+			default:
+				// std::cout << "!!!! Unhandled CSI dispatch" << std::endl;
 				break;
 		}
 	}
@@ -418,6 +462,7 @@ public:
 		m_utf8.reset();
 		vtparse_init(&m_vtparse);
 		m_style = Style();
+		m_mode = Mode();
 	}
 
 	void write(uint8_t *buf, unsigned int buf_len) {
@@ -428,9 +473,16 @@ public:
 			}
 			switch (m_vtparse.action) {
 				case VTPARSE_ACTION_EXECUTE:
+					/*					std::cout << "--> Execute " <<
+					   (int)m_vtparse.ch
+					                              << std::endl;*/
 					handle_execute(m_vtparse.ch);
 					break;
 				case VTPARSE_ACTION_PRINT:
+					/*					std::cout << "--> Print "
+					                              << (m_vtparse.data_end -
+					   m_vtparse.data_begin)
+					                              << std::endl;*/
 					handle_print(m_vtparse.data_begin, m_vtparse.data_end);
 					break;
 				case VTPARSE_ACTION_ESC_DISPATCH:
