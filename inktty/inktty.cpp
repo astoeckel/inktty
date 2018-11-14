@@ -78,11 +78,14 @@ public:
 						if (keybd.alt) {
 							buf[buf_ptr++] = 0x1B;
 						}
-						if (keybd.ctrl && keybd.codepoint >= 'a' && keybd.codepoint <= 'z') {
+						if (keybd.ctrl && keybd.codepoint >= 'a' &&
+						    keybd.codepoint <= 'z') {
 							buf[buf_ptr++] = keybd.codepoint - 'a' + 1;
 						} else if (keybd.is_char) {
-							buf_ptr += UTF8Encoder::unicode_to_utf8(keybd.codepoint, (char*)buf + buf_ptr);
-						} else if (keybd.scancode == 40 || keybd.scancode == 88) {
+							buf_ptr += UTF8Encoder::unicode_to_utf8(
+							    keybd.codepoint, (char *)buf + buf_ptr);
+						} else if (keybd.scancode == 40 ||
+						           keybd.scancode == 88) {
 							buf[buf_ptr++] = '\n';
 						} else if (keybd.scancode == 82) {
 							buf[buf_ptr++] = 0x1B;
@@ -104,7 +107,9 @@ public:
 						if (buf_ptr) {
 							m_pty.write(buf, buf_ptr);
 						}
-						std::cout << "Key down SCANCODE: " << keybd.scancode << " CODEPOINT: " << keybd.codepoint << std::endl;
+						std::cout << "Key down SCANCODE: " << keybd.scancode
+						          << " CODEPOINT: " << keybd.codepoint
+						          << std::endl;
 						break;
 					}
 					case Event::Type::KEYBD_KEY_UP:

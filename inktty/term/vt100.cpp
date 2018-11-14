@@ -107,7 +107,8 @@ private:
 			case 0x09:
 				// Horizontal tab. TODO: Implement proper tabs
 				m_matrix.move_rel(
-				    0, ((m_matrix.col() + 8) / 8) * 8 - m_matrix.col(), true, m_style);
+				    0, ((m_matrix.col() + 8) / 8) * 8 - m_matrix.col(), true,
+				    m_style);
 				return true;
 			case 0x0A:
 				m_matrix.move_rel(1, 0, true, m_style);
