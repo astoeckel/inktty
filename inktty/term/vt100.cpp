@@ -116,7 +116,7 @@ private:
 			case 0x0C:
 				// Vertical tab, form feed. Go to next line and column.
 				// This is what gnome-terminal seems to do
-				m_matrix.move_rel(1, 1, true, m_style);
+				m_matrix.move_rel(1, 0, true, m_style);
 				return true;
 			case 0x0D:
 				m_matrix.move_abs(m_matrix.row(), 1);
