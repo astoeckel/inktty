@@ -235,6 +235,29 @@ void Matrix::fill(uint32_t glyph, const Style &style, const Point &from, const P
 	}
 }
 
+void Matrix::shift_left(uint32_t glyph, const Style &style, const Point &pos, int n) {
+	// Make sure the parameters are valid
+	if (!valid(pos) || n < 0) {
+		return;
+	}
+
+	// Shift the cell contents to the left
+	for (int col = pos.x; col <= m_size.x - n; col++) {
+		Cell &c_tar = m_cells[pos.y - 1][col - 1];
+		const Cell &c_src = m_cells[pos.y - 1][col + n - 1];
+		c_tar = c_src;
+		c_tar.dirty = true;
+	}
+
+	// Insert fresh cells with the given style
+	for (int col = m_size.x - n + 1; col <= m_size.x; col++) {
+		Cell &c_tar = m_cells[pos.y - 1][col - 1];
+		c_tar = Cell();
+		c_tar.glyph = glyph;
+		c_tar.style = style;
+	}
+}
+
 
 void Matrix::write(uint32_t glyph, const Style &style, bool replaces_last) {
 	// If replaces_last is true, jump to the last write position

@@ -301,11 +301,8 @@ private:
 				}
 				break;
 			}
-			case 'P': {/* Clear line */
-/*				const int row = m_matrix.row();
-				const int col0 = m_matrix.col(), col1 = m_matrix.size().x;
-				m_matrix.fill(0, m_style, {col0, row}, {col0 + args});
-				break;*/
+			case 'P': {  // Delete characters right of the cursor
+				m_matrix.shift_left(0, m_style, {ccol, crow}, P(0));
 				break;
 			}
 			case 'S':

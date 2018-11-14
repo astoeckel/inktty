@@ -327,6 +327,8 @@ public:
 	 */
 	void fill(uint32_t glyph, const Style &style, const Point &from, const Point &to);
 
+	void shift_left(uint32_t glyph, const Style &style, const Point &pos, int n);
+
 	/**
 	 * Writes to the matrix at the given cursor location. Advances the cursor
 	 * location if necessary and
