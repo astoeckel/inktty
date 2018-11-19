@@ -19,7 +19,6 @@
 #include <vterm.h>
 #include <inktty/term/vterm.hpp>
 
-
 namespace inktty {
 /******************************************************************************
  * Class VTerm::Impl                                                          *
@@ -68,7 +67,7 @@ private:
 
 	static int vterm_moverect(VTermRect dest, VTermRect src, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
-		(void)self; // TODO
+		(void)self;  // TODO
 		return 1;
 	}
 
@@ -86,8 +85,12 @@ private:
 		return 1;
 	}
 
-	static RGBA vterm_convert_color(VTermColor c) {
+	static RGBA vterm_convert_color(const VTermColor &c) {
 		return RGBA{c.red, c.green, c.blue, 255U};
+	}
+
+	static VTermColor vterm_convert_color(const RGBA &c) {
+		return VTermColor{c.r, c.g, c.b};
 	}
 
 	static int vterm_setpenattr(VTermAttr attr, VTermValue *val, void *user) {
@@ -160,20 +163,20 @@ private:
 
 	static int vterm_bell(void *user) {
 		Impl &self = *static_cast<Impl *>(user);
-		(void)self; // TODO
+		(void)self;  // TODO
 		return 1;
 	}
 
 	static int vterm_resize(int rows, int cols, VTermPos *delta, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
-		(void)self; // TODO
+		(void)self;  // TODO
 		return 1;
 	}
 
 	static int vterm_setlineinfo(int row, const VTermLineInfo *newinfo,
 	                             const VTermLineInfo *oldinfo, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
-		(void)self; // TODO
+		(void)self;  // TODO
 		return 1;
 	}
 
@@ -301,6 +304,18 @@ public:
 		m_style = Style{};
 	}
 
+	void set_palette(const RGBA &default_fg, const RGBA &default_bg,
+	                 const Palette &palette) {
+		const VTermColor vt_default_fg = vterm_convert_color(default_fg);
+		const VTermColor vt_default_bg = vterm_convert_color(default_bg);
+		vterm_state_set_default_colors(m_vt_state, &vt_default_fg,
+		                               &vt_default_bg);
+		for (size_t i = 0; i < palette.size(); i++) {
+			const VTermColor vt_palette_color = vterm_convert_color(palette[i]);
+			vterm_state_set_palette_color(m_vt_state, i, &vt_palette_color);
+		}
+	}
+
 	void send_key(Event::Key key, bool shift, bool ctrl, bool alt) {
 		vterm_keyboard_key(m_vt, vterm_key(key),
 		                   vterm_keymod(shift, ctrl, alt));
@@ -336,6 +351,11 @@ VTerm::VTerm(Matrix &matrix) : m_impl(new Impl(matrix)) {}
 VTerm::~VTerm() {}
 
 void VTerm::reset() { m_impl->reset(); }
+
+void VTerm::set_palette(const RGBA &default_fg, const RGBA &default_bg,
+                        const Palette &palette) {
+	m_impl->set_palette(default_fg, default_bg, palette);
+}
 
 void VTerm::send_key(Event::Key key, bool shift, bool ctrl, bool alt) {
 	m_impl->send_key(key, shift, ctrl, alt);

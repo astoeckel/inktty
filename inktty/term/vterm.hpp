@@ -52,6 +52,12 @@ public:
 	void reset();
 
 	/**
+	 * Overrides the current palette.
+	 */
+	void set_palette(const RGBA &default_fg, const RGBA &default_bg,
+	                 const Palette &palette);
+
+	/**
 	 * Sends a keypress to the terminal. The encoded keypress is written to an
 	 * internal buffer that can be accessed using send_to_pty().
 	 */

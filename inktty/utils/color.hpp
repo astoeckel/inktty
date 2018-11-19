@@ -66,6 +66,8 @@ struct RGBA {
 
 	static const RGBA Black;
 	static const RGBA White;
+	static const RGBA SolarizedBlack;
+	static const RGBA SolarizedWhite;
 
 	bool operator==(const RGBA &o) const {
 		return (r == o.r) && (b == o.b) && (g == o.g) && (a == o.a);
@@ -123,20 +125,14 @@ public:
 		}
 	}
 
-	/**
-	 * Returns a reference at the default 16 colour palette.
-	 */
 	static const Palette Default16Colours;
-
-	/**
-	 * Returns a reference at the default 256 colour palette.
-	 */
+	static const Palette Solarized16Colours;
 	static const Palette Default256Colours;
 
 	/**
 	 * Returns the size of the palette.
 	 */
-	size_t size() const;
+	size_t size() const { return m_size; }
 
 	RGBA &operator[](int i) {
 		if (i >= 0 && size_t(i) < m_size) {
