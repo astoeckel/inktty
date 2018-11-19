@@ -40,9 +40,10 @@ struct Event {
 		 */
 		NONE,
 
-		KEYBD_KEY_DOWN,
-
-		KEYBD_KEY_UP,
+		/**
+		 * A special key has been hit on the keyboard.
+		 */
+		KEY_INPUT,
 
 		/**
 		 * Text has been read from the keyboard.
@@ -85,17 +86,68 @@ struct Event {
 		CHILD_OUTPUT
 	};
 
+	/**
+	 * The Key enum is used to identify special keys.
+	 */
+	enum class Key {
+		NONE,
+		ENTER,
+		TAB,
+		BACKSPACE,
+		ESCAPE,
+		UP,
+		DOWN,
+		LEFT,
+		RIGHT,
+		INS,
+		DEL,
+		HOME,
+		END,
+		PAGE_UP,
+		PAGE_DOWN,
+		F1,
+		F2,
+		F3,
+		F4,
+		F5,
+		F6,
+		F7,
+		F8,
+		F9,
+		F10,
+		F11,
+		F12,
+		KP_0,
+		KP_1,
+		KP_2,
+		KP_3,
+		KP_4,
+		KP_5,
+		KP_6,
+		KP_7,
+		KP_8,
+		KP_9,
+		KP_MULT,
+		KP_PLUS,
+		KP_COMMA,
+		KP_MINUS,
+		KP_PERIOD,
+		KP_DIVIDE,
+		KP_ENTER,
+		KP_EQUAL
+	};
+
 	struct Keyboard {
 		/**
-		 * If the key corresponds to a unicode character, codepoint should be
-		 * set to this character.
+		 * UTF32 codepoint corresponding to the key being pressed. Only valid
+		 * if "key" is Key::NONE.
 		 */
-		uint32_t codepoint;
+		uint32_t unichar;
 
 		/**
-		 * Untranslated keycode.
+		 * Key code as defined above. To be ignored if is_unichar is true.
 		 */
-		uint32_t scancode;
+		Key key;
 
 		/**
 		 * True if the shift key is pressed at the same time.
@@ -111,12 +163,6 @@ struct Event {
 		 * True if the alt key is pressed at the same time.
 		 */
 		bool alt : 1;
-
-		/**
-		 * True if the key is a printable character. In this case, the
-		 * "codepoint" should be set.
-		 */
-		bool is_char : 1;
 	};
 
 	struct Mouse {
@@ -157,9 +203,18 @@ struct Event {
 		size_t buf_len;
 
 		/**
-		 * Data received from the child process.
+		 * Buffer containing the UTF-8 encoded text input.
 		 */
 		uint8_t buf[BUF_SIZE];
+
+		/**
+		 * 
+		 */
+		bool shift: 1;
+
+		bool ctrl: 1;
+
+		bool alt: 1;
 	};
 
 	Type type = Type::NONE;

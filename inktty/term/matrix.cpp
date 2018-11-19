@@ -16,6 +16,8 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <algorithm>
+
 #include <inktty/term/matrix.hpp>
 
 namespace inktty {
@@ -58,22 +60,12 @@ bool Matrix::Cell::needs_update(const Cell &old) const {
 			return true;
 		}
 		if (!inverse) {
-			if (style.default_fg != old.style.default_fg) {
+			if (style.fg != old.style.fg) {
 				return true;
-			}
-			if (!style.default_fg) {
-				if (style.fg != old.style.fg) {
-					return true;
-				}
 			}
 		} else {
-			if (style.default_bg != old.style.default_bg) {
+			if (style.bg != old.style.bg) {
 				return true;
-			}
-			if (!style.default_bg) {
-				if (style.bg != old.style.bg) {
-					return true;
-				}
 			}
 		}
 		if ((style.bold != old.style.bold) ||
@@ -86,22 +78,12 @@ bool Matrix::Cell::needs_update(const Cell &old) const {
 
 	// Check the background
 	if (!inverse) {
-		if (style.default_bg != old.style.default_bg) {
+		if (style.bg != old.style.bg) {
 			return true;
-		}
-		if (!style.default_bg) {
-			if (style.bg != old.style.bg) {
-				return true;
-			}
 		}
 	} else {
-		if (style.default_fg != old.style.default_fg) {
+		if (style.fg != old.style.fg) {
 			return true;
-		}
-		if (!style.default_fg) {
-			if (style.fg != old.style.fg) {
-				return true;
-			}
 		}
 	}
 	return false;
@@ -113,11 +95,11 @@ bool Matrix::Cell::needs_update(const Cell &old) const {
 
 Matrix::Matrix(int rows, int cols)
     : m_pos(1, 1),
-      m_pos_last(1, 1),
       m_pos_old(1, 1),
       m_size(cols, rows),
       m_cursor_visible(true),
-      m_cursor_visible_old(false) {
+      m_cursor_visible_old(false),
+      m_alternative_buffer_active(false) {
 	reset();
 }
 
@@ -135,7 +117,6 @@ void Matrix::extend_update_bounds(const Point &p) {
 void Matrix::reset() {
 	// Set the new cursor location
 	m_pos = Point(1, 1);
-	m_pos_last = Point(1, 1);
 
 	// Make the cursor visible
 	m_cursor_visible = true;
@@ -143,9 +124,11 @@ void Matrix::reset() {
 	// Resize the vectors to the current matrix size. This deletes any content
 	// that might have been left over from a previous resize().
 	m_cells.resize(m_size.y);
+	m_cells_alt.resize(m_size.y);
 	m_cells_old.resize(m_size.y);
 	for (int y = 0; y < m_size.y; y++) {
 		m_cells[y].resize(m_size.x);
+		m_cells_alt[y].resize(m_size.x);
 		m_cells_old[y].resize(m_size.x);
 	}
 
@@ -168,6 +151,7 @@ void Matrix::resize(int rows, int cols) {
 	// Add new rows to the matrix
 	if ((size_t)rows > m_cells.size()) {
 		m_cells.resize(rows);
+		m_cells_alt.resize(rows);
 		m_cells_old.resize(rows);
 	}
 
@@ -175,6 +159,7 @@ void Matrix::resize(int rows, int cols) {
 	for (int y = 0; y < rows; y++) {
 		if ((size_t)cols > m_cells[y].size()) {
 			m_cells[y].resize(cols);
+			m_cells_alt[y].resize(cols);
 			m_cells_old[y].resize(cols);
 		}
 	}
@@ -184,25 +169,8 @@ void Matrix::resize(int rows, int cols) {
 	m_update_bounds.y1 = std::min(m_update_bounds.y1, rows);
 }
 
-void Matrix::move_rel(Point delta, bool wrap, const Style &style) {
-	m_pos += delta;
-	if (wrap) {
-		while (m_pos.x > m_size.x) {
-			m_pos.x = m_pos.x - m_size.x;
-			m_pos.y++;
-		}
-		if (m_pos.y > m_size.y) {
-			const int n = m_pos.y - m_size.y;
-			scroll(n, style);
-			m_pos.y -= n;
-		}
-	}
-	move_abs(m_pos);
-}
-
 void Matrix::move_abs(Point pos) {
 	m_pos = Rect{1, 1, m_size.x, m_size.y}.clip(pos, true);
-	m_pos_last = m_pos;
 }
 
 void Matrix::set(uint32_t glyph, const Style &style, Point pos) {
@@ -235,78 +203,61 @@ void Matrix::fill(uint32_t glyph, const Style &style, const Point &from, const P
 	}
 }
 
-void Matrix::shift_left(uint32_t glyph, const Style &style, const Point &pos, int n) {
-	// Make sure the parameters are valid
-	if (!valid(pos) || n < 0) {
-		return;
-	}
-
-	// Shift the cell contents to the left
-	for (int col = pos.x; col <= m_size.x - n; col++) {
-		Cell &c_tar = m_cells[pos.y - 1][col - 1];
-		const Cell &c_src = m_cells[pos.y - 1][col + n - 1];
-		c_tar = c_src;
-		c_tar.dirty = true;
-	}
-
-	// Insert fresh cells with the given style
-	for (int col = m_size.x - n + 1; col <= m_size.x; col++) {
-		Cell &c_tar = m_cells[pos.y - 1][col - 1];
-		c_tar = Cell();
-		c_tar.glyph = glyph;
-		c_tar.style = style;
-	}
-}
-
-
-void Matrix::write(uint32_t glyph, const Style &style, bool replaces_last) {
-	// If replaces_last is true, jump to the last write position
-	if (replaces_last) {
-		m_pos = m_pos_last;
-	}
-
-	// Set the character
-	set(glyph, style, m_pos);
-
-	// Store the last cursor position
-	m_pos_last = m_pos;
-
-	// Compute the next cursor location, scroll up if necessary
-	move_rel(Point(1, 0), true, style);
-}
-
-void Matrix::scroll(int n, const Style &style) {
-	// Abort if n == 0 (no-op)
-	if (n == 0) {
+void Matrix::scroll(uint32_t glyph, const Style &style, const Rect &r, int downward, int rightward) {
+	// Abort if there is nothing to do
+	if ((downward == 0 && rightward == 0) || !r.valid()) {
 		return;
 	}
 
 	// Copy cells by calling "set" (TODO: optimize)
-	const int y0 = (n > 0) ? 1 : m_size.y;
-	const int y1 = (n > 0) ? m_size.y : 1;
-	const int dir = (y1 > y0) ? 1 : -1;
-	for (int y_tar = y0; y_tar <= y1; y_tar += dir) {
-		const int y_src = y_tar + n;
-		if (y_src < 1 || y_src > m_size.y) {
+	const int x0 = (rightward >= 0) ? r.x0 : r.x1;
+	const int x1 = (rightward >= 0) ? r.x1 : r.x0;
+	const int y0 = (downward >= 0) ? r.y0 : r.y1;
+	const int y1 = (downward >= 0) ? r.y1 : r.y0;
+	const int dir_x = (x1 >= x0) ? 1 : -1;
+	const int dir_y = (y1 >= y0) ? 1 : -1;
+	for (int y_tar = y0; dir_y * y_tar <= dir_y * y1; y_tar += dir_y) {
+		const int y_src = y_tar + downward;
+		if (y_src < r.y0 || y_src > r.y1) {
 			Cell c;
 			c.style = style;
-			std::fill(m_cells[y_tar - 1].begin(), m_cells[y_tar - 1].end(), c);
+			std::fill(m_cells[y_tar - 1].begin() + r.x0 - 1, m_cells[y_tar - 1].begin() + r.x1, c);
 		} else {
-			for (int x = 1; x <= m_size.x; x++) {
-				const Cell &c_src = m_cells[y_src - 1][x - 1];
-				Cell &c_tar = m_cells[y_tar - 1][x - 1];
-				c_tar = c_src;
-				c_tar.dirty = true;
+			for (int x_tar = x0; dir_x * x_tar <= dir_x * x1; x_tar += dir_x) {
+				Cell &c_tar = m_cells[y_tar - 1][x_tar - 1];
+				const int x_src = x_tar + rightward;
+				if (x_src < r.x0 || x_src > r.x1) {
+					Cell c;
+					c.style = style;
+					c_tar = c;
+				} else {
+					const Cell &c_src = m_cells[y_src - 1][x_src - 1];
+					c_tar = c_src;
+					c_tar.dirty = true;
+					c_tar.cursor = false;
+				}
 			}
 		}
 	}
 
 	// Update the y-coordinates of all stored old positions
-	m_pos_old.y -= n;
-	m_pos_last.y -= n;
+	m_pos_old.y -= downward;
+	m_pos_old.x -= rightward;
 
 	// Set the update bounds to the entire screen rectangle
 	m_update_bounds = Rect{1, 1, m_size.x, m_size.y};
+}
+
+void Matrix::set_alternative_buffer_active(bool active) {
+	if (active != m_alternative_buffer_active) {
+		m_alternative_buffer_active = active;
+		std::swap(m_cells, m_cells_alt);
+		for (size_t y = 0; y < m_cells.size(); y++) {
+			for (size_t x = 0; x < m_cells[y].size(); x++) {
+				m_cells[y][x].dirty = true;
+			}
+		}
+	}
 }
 
 void Matrix::commit(std::vector<CellUpdate> &updates) {

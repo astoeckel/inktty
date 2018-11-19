@@ -19,8 +19,8 @@ project('inktty', ['cpp', 'c'],
 
 # Dependencies
 dep_freetype = dependency('freetype2', required: true)
-dep_vtparse = dependency('vtparse',
-	fallback:['vtparse', 'dep_vtparse'],
+dep_vterm = dependency('vterm',
+	fallback:['vterm', 'dep_vterm'],
 	required: true)
 
 # utf8proc library
@@ -44,14 +44,14 @@ lib_inktty = library(
 		'inktty/term/events.cpp',
 		'inktty/term/matrix.cpp',
 		'inktty/term/pty.cpp',
-		'inktty/term/vt100.cpp',
+		'inktty/term/vterm.cpp',
 		'inktty/utils/color.cpp',
 		'inktty/utils/geometry.cpp',
 		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
 	],
 	include_directories: [inc_inktty, inc_utf8proc],
-	dependencies: [dep_freetype, dep_vtparse],
+	dependencies: [dep_freetype, dep_vterm],
 	link_with: [lib_utf8proc]
 )
 

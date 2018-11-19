@@ -154,8 +154,8 @@ static int spawn_child_in_pty(int pty_master, int pty_slave, unsigned int rows,
  * Class PTY                                                                  *
  ******************************************************************************/
 
-//const char *PTY::DEFAULT_TERM = "xterm-256color";
-const char *PTY::DEFAULT_TERM = "linux";
+const char *PTY::DEFAULT_TERM = "xterm-256color";
+//const char *PTY::DEFAULT_TERM = "linux";
 
 PTY::PTY(unsigned int rows, unsigned int cols,
          const std::vector<std::string> &args, const char *term)

@@ -82,13 +82,7 @@ public:
 		 * The presentation layer is supposed to contain the actual characters
 		 * or UI elements that are being displayed.
 		 */
-		Presentation,
-
-		/**
-		 * The foreground layer contains cursors or other UI elements that
-		 * should be drawn independently on top of the other two layers.
-		 */
-		Foreground
+		Presentation
 	};
 
 	/**

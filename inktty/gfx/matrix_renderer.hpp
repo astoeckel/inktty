@@ -37,8 +37,6 @@ private:
 
 	Matrix &m_matrix;
 
-	Palette m_palette;
-
 	unsigned int m_font_size;
 
 	unsigned int m_orientation;

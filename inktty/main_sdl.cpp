@@ -28,8 +28,8 @@ using namespace inktty;
 
 int main(int argc, char *argv[])
 {
-	KbdStdin keyboard;
+/*	KbdStdin keyboard;*/
 	SDLBackend display(1600, 1200);
-	Inktty({&display, &keyboard}, display).run();
+	Inktty({&display/*, &keyboard*/}, display).run();
 	return 0;
 }

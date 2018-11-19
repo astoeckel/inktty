@@ -71,6 +71,10 @@ struct RGBA {
 		return (r == o.r) && (b == o.b) && (g == o.g) && (a == o.a);
 	}
 
+	bool operator!=(const RGBA &o) const {
+		return !((*this) == o);
+	}	
+
 	RGBA premultiply_alpha() const {
 		return RGBA(
 			uint16_t(r) * a / 255,
@@ -145,61 +149,6 @@ public:
 		return (*const_cast<Palette *>(this))[i];
 	}
 };
-
-/**
- * The color class represents either an indexed colour or an RGBA colour.
- */
-class Color {
-private:
-	/**
-	 * Enum describing the two possible colour modes: indexed colours or RGBA
-	 * colours.
-	 */
-	enum class Mode { Indexed, RGB };
-
-	/**
-	 * Mode of this colour descriptor, either Indexed or RGBA.
-	 */
-	Mode m_mode;
-
-	int m_idx;
-
-	RGBA m_rgb;
-
-public:
-	Color(int idx) : m_mode(Mode::Indexed), m_idx(idx) {}
-
-	Color(const RGBA &rgba) : m_mode(Mode::RGB), m_rgb(rgba) {}
-
-	/**
-	 * Returns the RGBA colour represented by this Colour instance. If the colour
-	 * is in indexed mode looks up the RGBA colour from the palette, otherwise
-	 * directly returns the colour.
-	 *
-	 * @param p is the palette from which the colour should be looked up if in
-	 * indexed mode.
-	 */
-	const RGBA &rgb(const Palette &p) const {
-		switch (m_mode) {
-			case Mode::Indexed:
-				return p[m_idx];
-			case Mode::RGB:
-				return m_rgb;
-		}
-		__builtin_unreachable();
-	}
-
-	bool operator==(const Color &o) const {
-		return (m_mode == o.m_mode) &&
-		       (((m_mode == Mode::Indexed) && (m_idx == o.m_idx)) ||
-		        ((m_mode == Mode::RGB) && (m_rgb == o.m_rgb)));
-	}
-
-	bool operator!=(const Color &o) const {
-		return !((*this) == o);
-	}
-};
-
 }  // namespace inktty
 
 #endif /* INKTTY_UTILS_COLOR_HPP */

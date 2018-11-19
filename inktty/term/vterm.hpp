@@ -17,38 +17,53 @@
  */
 
 /**
- * @file ansi.hpp
+ * @file vterm.hpp
  *
- * The VT100 class reads the incoming byte-stream, UTF-8 decodes it an writes
- * it to the text memory matrix.
+ * The VTerm class reads the incoming byte-stream and writes it to a memory
+ * matrix.
  *
  * @author Andreas Stöckel
  */
 
-#ifndef INKTTY_TERM_VT100_HPP
-#define INKTTY_TERM_VT100_HPP
+#ifndef INKTTY_TERM_VTERM_HPP
+#define INKTTY_TERM_VTERM_HPP
 
 #include <cstddef>
 #include <cstdint>
 #include <memory>
 
+#include <inktty/term/events.hpp>
 #include <inktty/term/matrix.hpp>
 
 namespace inktty {
 
-class VT100 {
+class VTerm {
 private:
 	class Impl;
 	std::unique_ptr<Impl> m_impl;
 
 public:
-	VT100(Matrix &matrix);
-	~VT100();
+	VTerm(Matrix &matrix);
+	~VTerm();
 
+	/**
+	 * Resets the terminal to its initial state, resets all memory contents.
+	 */
 	void reset();
-	void write(uint8_t *in_buf, unsigned int in_buf_len);
+
+	/**
+	 * Sends a keypress to the terminal. The encoded keypress is written to an
+	 * internal buffer that can be accessed using send_to_pty().
+	 */
+	void send_key(Event::Key key, bool shift, bool ctrl, bool alt);
+
+	void send_char(uint32_t unichar, bool shift, bool ctrl, bool alt);
+
+	void receive_from_pty(const uint8_t *buf, size_t buf_len);
+
+	size_t send_to_pty(uint8_t *buf, size_t buf_len);
 };
 
 }  // namespace inktty
 
-#endif /* INKTTY_TERM_VT100_HPP */
+#endif /* INKTTY_TERM_VTERM_HPP */

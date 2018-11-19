@@ -39,26 +39,14 @@ namespace inktty {
  */
 struct Style {
 	/**
-	 * If true, uses the default foreground color and ignores "fg". This is the
-	 * default.
-	 */
-	bool default_fg;
-
-	/**
-	 * If true, uses the default background color and ignores "bg". This is the
-	 + default.
-	 */
-	bool default_bg;
-
-	/**
 	 * Foreground or text colour.
 	 */
-	Color fg;
+	RGBA fg;
 
 	/**
 	 * Background colour.
 	 */
-	Color bg;
+	RGBA bg;
 
 	/**
 	 * True if the foreground is not rendered.
@@ -95,10 +83,8 @@ struct Style {
 	 * Default constructor, resets all member variables to their default value.
 	 */
 	Style()
-	    : default_fg(true),
-	      default_bg(true),
-	      fg(7),
-	      bg(0),
+	    : fg(0xF7F7F7),
+	      bg(0x000000),
 	      concealed(false),
 	      bold(false),
 	      italic(false),
@@ -110,8 +96,7 @@ struct Style {
 	 * Compares this Style instance to the given other Style instance.
 	 */
 	bool operator==(const Style &o) const {
-		return (default_fg == o.default_fg) && (default_bg == o.default_bg) &&
-		       (fg == o.fg) && (bg == o.bg) && (concealed == o.concealed) &&
+		return (fg == o.fg) && (bg == o.bg) && (concealed == o.concealed) &&
 		       (bold == o.bold) && (italic == o.italic) &&
 		       (strikethrough == o.strikethrough) && (inverse == o.inverse) &&
 		       (underline == o.underline);
@@ -168,7 +153,6 @@ public:
 	 */
 	using CellArray = std::vector<std::vector<Cell>>;
 
-
 	/**
 	 * Data structure used to inform about a partial matrix update.
 	 */
@@ -194,6 +178,11 @@ private:
 	 * Cell array holding the current cell contents.
 	 */
 	CellArray m_cells;
+
+	/**
+	 * Cell array holding the cell content of the alternative buffer.
+	 */
+	CellArray m_cells_alt;
 
 	/**
 	 * Cell array holding the cell contents after the last commit action.
@@ -229,6 +218,8 @@ private:
 	 * Old "cursor visible" flag.
 	 */
 	bool m_cursor_visible_old;
+
+	bool m_alternative_buffer_active;
 
 	/**
 	 * Bounding rectangle describing the area of updated cells.
@@ -288,32 +279,17 @@ public:
 	int col() const { return m_pos.x; }
 
 	/**
-	 * Moves the cursor relatively to the given delta.
-	 */
-	void move_rel(Point delta, bool wrap=false, const Style &style = Style());
-
-	void move_rel(int row, int col, bool wrap = false, const Style &style = Style()) {
-		move_rel(Point(col, row), wrap);
-	}
-
-	/**
 	 * Moves the cursor to the given absolute location. Clips the cursor
 	 * location to the current matrix size. (1, 1) corresponds to the upper-left
 	 * corner.
 	 */
 	void move_abs(Point pos);
 
-	void move_abs(int row, int col) {
-		move_abs(Point(col, row));
-	}
+	void move_abs(int row, int col) { move_abs(Point(col, row)); }
 
-	void col(int col) {
-		move_abs(row(), col);
-	}
+	void col(int col) { move_abs(row(), col); }
 
-	void row(int row) {
-		move_abs(row, col());
-	}
+	void row(int row) { move_abs(row, col()); }
 
 	/**
 	 * Sets the cell at the given position to contain the given glyph with the
@@ -325,21 +301,16 @@ public:
 	 * Fills the screen with the given glyph and style from the given cursor
 	 * location to the given cursor location.
 	 */
-	void fill(uint32_t glyph, const Style &style, const Point &from, const Point &to);
-
-	void shift_left(uint32_t glyph, const Style &style, const Point &pos, int n);
-
-	/**
-	 * Writes to the matrix at the given cursor location. Advances the cursor
-	 * location if necessary and
-	 */
-	void write(uint32_t glyph, const Style &style, bool replaces_last = false);
+	void fill(uint32_t glyph, const Style &style, const Point &from,
+	          const Point &to);
 
 	/**
 	 * Scrolls the entire view one line up or down. Inserts a blank row with the
 	 * given style.
 	 */
-	void scroll(int n, const Style &style = Style());
+	void scroll(uint32_t glyph, const Style &style, const Rect &r, int downward, int rightward);
+
+	void set_alternative_buffer_active(bool active);
 
 	/**
 	 * Commits all updates to the matrix. Writes the status of all the cells

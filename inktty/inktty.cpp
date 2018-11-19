@@ -18,12 +18,14 @@
 
 #include <iostream>
 
+#include <time.h>
+
 #include <inktty/gfx/font.hpp>
 #include <inktty/gfx/matrix_renderer.hpp>
 #include <inktty/inktty.hpp>
-#include <inktty/term/pty.hpp>
-#include <inktty/term/vt100.hpp>
 #include <inktty/term/matrix.hpp>
+#include <inktty/term/pty.hpp>
+#include <inktty/term/vterm.hpp>
 #include <inktty/utils/utf8.hpp>
 
 namespace inktty {
@@ -44,100 +46,112 @@ private:
 	Matrix m_matrix;
 	MatrixRenderer m_matrix_renderer;
 	PTY m_pty;
-	VT100 m_vt100;
+	VTerm m_vterm;
+	int64_t m_t_last_draw;
+	bool m_needs_redraw;
+
+	static int64_t microtime() {
+		struct timespec ts;
+		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
+		return (int64_t(ts.tv_sec) * 1000 * 1000) +
+		       (int64_t(ts.tv_nsec) / 1000);
+	}
 
 public:
 	Impl(const std::vector<EventSource *> &event_sources, Display &display)
 	    : m_event_sources(event_sources),
 	      m_display(display),
-	      m_font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96),
+	      	      m_font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf",
+	         96),
+/*	      m_font("/home/andreas/.local/share/fonts/UbuntuMono-R.ttf", 96),*/
 	      m_matrix(),
-	      m_matrix_renderer(m_font, m_display, m_matrix, 10 * 64),
+	      m_matrix_renderer(m_font, m_display, m_matrix, 16 * 64),
 	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/usr/bin/bash"}),
-	      m_vt100(m_matrix) {
+	      m_vterm(m_matrix),
+	      m_t_last_draw(microtime()),
+	      m_needs_redraw(false) {
 		m_event_sources.push_back(&m_pty);
 	}
 
 	~Impl() {}
 
+	bool handle_event(const Event &event) {
+		switch (event.type) {
+			case Event::Type::NONE:
+				break;
+			case Event::Type::KEY_INPUT: {
+				const Event::Keyboard &k = event.data.keybd;
+				if (k.key != Event::Key::NONE) {
+					m_vterm.send_key(k.key, k.shift, k.ctrl, k.alt);
+				} else if (k.unichar) {
+					m_vterm.send_char(k.unichar, k.shift, k.ctrl, k.alt);
+				}
+				break;
+			}
+			case Event::Type::TEXT_INPUT: {
+				const Event::Text &t = event.data.text;
+				UTF8Decoder utf8;
+				for (size_t i = 0; i < t.buf_len; i++) {
+					UTF8Decoder::Status res;
+					if ((res = utf8.feed(t.buf[i])) && !res.error) {
+						m_vterm.send_char(res.codepoint, false, false, false);
+					}
+				}
+				break;
+			}
+			case Event::Type::MOUSE_BTN_DOWN:
+				break;
+			case Event::Type::MOUSE_BTN_UP:
+				break;
+			case Event::Type::MOUSE_MOVE:
+				break;
+			case Event::Type::MOUSE_CLICK:
+				break;
+			case Event::Type::QUIT:
+				return true;
+			case Event::Type::RESIZE:
+				break;
+			case Event::Type::CHILD_OUTPUT:
+				m_vterm.receive_from_pty(event.data.child.buf,
+				                         event.data.child.buf_len);
+				m_needs_redraw = true;
+				break;
+		}
+		return false;
+	}
+
 	void run() {
 		int evsrc = -1;
 		bool done = false;
+		uint8_t buf[64];
+		size_t buf_len = 0;
 		while (!done) {
 			Event event;
-			if ((evsrc = Event::wait(m_event_sources, event, evsrc)) >= 0) {
-				switch (event.type) {
-					case Event::Type::NONE:
-						break;
-					case Event::Type::KEYBD_KEY_DOWN: {
-						const Event::Keyboard &keybd = event.data.keybd;
-						uint8_t buf[8];
-						size_t buf_ptr = 0;
 
-						/* Handle control characters */
-						if (keybd.alt) {
-							buf[buf_ptr++] = 0x1B;
-						}
-						if (keybd.ctrl && keybd.codepoint >= 'a' &&
-						    keybd.codepoint <= 'z') {
-							buf[buf_ptr++] = keybd.codepoint - 'a' + 1;
-						} else if (keybd.is_char) {
-							buf_ptr += UTF8Encoder::unicode_to_utf8(
-							    keybd.codepoint, (char *)buf + buf_ptr);
-						} else if (keybd.scancode == 40 ||
-						           keybd.scancode == 88) {
-							buf[buf_ptr++] = '\n';
-						} else if (keybd.scancode == 82) {
-							buf[buf_ptr++] = 0x1B;
-							buf[buf_ptr++] = 0x5B;
-							buf[buf_ptr++] = 0x41;
-						} else if (keybd.scancode == 81) {
-							buf[buf_ptr++] = 0x1B;
-							buf[buf_ptr++] = 0x5B;
-							buf[buf_ptr++] = 0x42;
-						} else if (keybd.scancode == 80) {
-							buf[buf_ptr++] = 0x1B;
-							buf[buf_ptr++] = 0x5B;
-							buf[buf_ptr++] = 0x44;
-						} else if (keybd.scancode == 79) {
-							buf[buf_ptr++] = 0x1B;
-							buf[buf_ptr++] = 0x5B;
-							buf[buf_ptr++] = 0x43;
-						}
-						if (buf_ptr) {
-							m_pty.write(buf, buf_ptr);
-						}
-						std::cout << "Key down SCANCODE: " << keybd.scancode
-						          << " CODEPOINT: " << keybd.codepoint
-						          << std::endl;
-						break;
-					}
-					case Event::Type::KEYBD_KEY_UP:
-						// Not handles right now
-						break;
-					case Event::Type::TEXT_INPUT:
-						m_pty.write(event.data.text.buf,
-						            event.data.text.buf_len);
-						break;
-					case Event::Type::MOUSE_BTN_DOWN:
-						break;
-					case Event::Type::MOUSE_BTN_UP:
-						break;
-					case Event::Type::MOUSE_MOVE:
-						break;
-					case Event::Type::MOUSE_CLICK:
-						break;
-					case Event::Type::QUIT:
-						done = true;
-						break;
-					case Event::Type::RESIZE:
-						break;
-					case Event::Type::CHILD_OUTPUT:
-						m_vt100.write(event.data.child.buf,
-						              event.data.child.buf_len);
-						m_matrix_renderer.draw();
-						break;
+			// Redraw the UI in 16.667 ms intervals (corresponding to 60 Hz)
+			const int64_t t = microtime();
+			int timeout = -1;
+			if (m_needs_redraw) {
+				timeout = (16667 - (t - m_t_last_draw)) / 1000;
+				if (timeout <= 0) {
+					m_matrix_renderer.draw();
+					m_t_last_draw = t;
+					m_needs_redraw = false;
+					timeout = -1;
 				}
+			}
+
+			// Wait for a new event or sleep for the timeout calculated above
+			evsrc = Event::wait(m_event_sources, event, evsrc, timeout);
+
+			// If there was an event, handle the event
+			if (evsrc >= 0) {
+				done = handle_event(event);
+			}
+
+			// Forward the output of the terminal to the PTY
+			while ((buf_len = m_vterm.send_to_pty(buf, sizeof(buf)))) {
+				m_pty.write(buf, buf_len);
 			}
 		}
 	}

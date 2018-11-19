@@ -62,7 +62,9 @@ int Event::wait(const std::vector<EventSource *> &sources, Event &event,
 	}
 
 	// Wait for events on the specified list of fds
-	poll(&fds[0], fds.size(), timeout);
+	if (poll(&fds[0], fds.size(), timeout) <= 0) {
+		return -1;
+	}
 
 	// Fetch the events from the event sources.
 	// TODO: handle last_source correctly

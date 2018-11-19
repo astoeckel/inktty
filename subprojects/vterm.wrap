@@ -1,0 +1,4 @@
+[wrap-git]
+directory=libvterm
+url=https://github.com/astoeckel/libvterm
+revision=meson

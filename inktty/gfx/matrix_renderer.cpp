@@ -32,7 +32,6 @@ MatrixRenderer::MatrixRenderer(Font &font, Display &display, Matrix &matrix,
     : m_font(font),
       m_display(display),
       m_matrix(matrix),
-      m_palette(Palette::Default256Colours),
       m_font_size(font_size),
       m_orientation(orientation),
       m_cols(0),
@@ -127,8 +126,8 @@ Rect MatrixRenderer::get_coords(size_t row, size_t col) {
 
 Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase) {
 	/* Fetch foreground and background colour */
-	RGBA fg = cell.style.fg.rgb(m_palette);
-	RGBA bg = cell.style.bg.rgb(m_palette);
+	RGBA fg = cell.style.fg;
+	RGBA bg = cell.style.bg;
 	if (cell.cursor ^ cell.style.inverse) {
 		std::swap(fg, bg);
 	}
@@ -169,8 +168,8 @@ void MatrixRenderer::draw(bool redraw) {
 		m_display.fill(Display::Layer::Presentation, RGBA(0, 0, 0, 0), m_bounds);
 		Matrix::CellArray cells = m_matrix.cells();
 		Matrix::Cell cell_old;
-		for (size_t i = 0; i < m_rows; i++) {
-			for (size_t j = 0; j < m_cols; j++) {
+		for (size_t i = 0; i < m_matrix.size().y; i++) {
+			for (size_t j = 0; j < m_matrix.size().x; j++) {
 				const Rect r1 = draw_cell(i, j, cell_old, true);
 				const Rect r2 = draw_cell(i, j, cells[i][j], false);
 				m_display.commit(r1.grow(r2), Display::CommitMode::Full);

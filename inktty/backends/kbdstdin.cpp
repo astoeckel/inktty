@@ -92,10 +92,10 @@ bool KbdStdin::event_get(EventSource::PollMode mode, Event &event) {
 			data.buf_len = n_read;
 			data.buf[data.buf_len] = '\0';
 			char *s = (char*)data.buf;
-			while (*s) {
+/*			while (*s) {
 				dprintf(m_data->fd_log, "%02X ", (int)(*s++));
 			}
-			dprintf(m_data->fd_log, "\n");
+			dprintf(m_data->fd_log, "\n");*/
 			return true;
 		}
 	}

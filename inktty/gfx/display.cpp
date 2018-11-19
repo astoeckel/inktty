@@ -49,7 +49,6 @@ private:
 	std::vector<RGBA> m_composite;
 	std::vector<RGBA> m_layer_bg;
 	std::vector<RGBA> m_layer_presentation;
-	std::vector<RGBA> m_layer_fg;
 	std::recursive_mutex m_mutex;
 
 	template <typename T>
@@ -64,8 +63,6 @@ private:
 				return align(&m_layer_bg[0]);
 			case Layer::Presentation:
 				return align(&m_layer_presentation[0]);
-			case Layer::Foreground:
-				return align(&m_layer_fg[0]);
 		}
 		return nullptr;
 	}
@@ -86,20 +83,13 @@ private:
 		m_composite.resize(size);
 		m_layer_bg.resize(size);
 		m_layer_presentation.resize(size);
-		m_layer_fg.resize(size);
 	}
 
 	void compose(Rect r) {
-		// Align x0 and x1 to a 16-byte boundary
-		const size_t apix = (16U / sizeof(RGBA));
-//		r.x0 = (unsigned int)(r.x0) & (apix - 1U);
-//		r.x1 = (((unsigned int)(r.x1) + (apix - 1U)) / apix) * apix;
-
-		// Fetch background, "middleground" and foreground
+		// Fetch background and presentation layer
 		RGBA *p_tar_s = align(&m_composite[0]);
 		const RGBA *p_bg_s = target_pointer(Layer::Background);
 		const RGBA *p_mg_s = target_pointer(Layer::Presentation);
-		const RGBA *p_fg_s = target_pointer(Layer::Foreground);
 
 		// Iterate over each line and render the composite image
 		for (size_t y = size_t(r.y0); y < size_t(r.y1); y++) {
@@ -112,9 +102,8 @@ private:
 			RGBA *p_tar1 = p_tar_s + o1;
 			const RGBA *p_bg = p_bg_s + o0;
 			const RGBA *p_mg = p_mg_s + o0;
-			const RGBA *p_fg = p_fg_s + o0;
 
-			for (RGBA *p = p_tar0; p < p_tar1; p++, p_bg++, p_mg++, p_fg++) {
+			for (RGBA *p = p_tar0; p < p_tar1; p++, p_bg++, p_mg++) {
 				// Fetch the background and blend it with the middle-ground,
 				// assume the background was fully opaque.
 				uint16_t r = p_bg->r, g = p_bg->g, b = p_bg->b, a = p_mg->a;

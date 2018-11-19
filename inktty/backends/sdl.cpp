@@ -63,6 +63,10 @@ private:
 
 	std::condition_variable m_gui_cond_var;
 
+	int m_shift;
+	int m_ctrl;
+	int m_alt;
+
 	/**
 	 * This function runs on a separate thread and is the only function inside
 	 * the SDLBackend::Impl class that directly interacts with SDL.
@@ -160,25 +164,157 @@ private:
 		SDL_Quit();
 	}
 
-	static bool sdl_translate_keyboard_event(const SDL_KeyboardEvent &e,
-	                                         Event::Keyboard &keybd) {
-		keybd.scancode = e.keysym.scancode;
-		keybd.shift = e.keysym.mod & KMOD_SHIFT;
-		keybd.alt = e.keysym.mod & KMOD_ALT;
-		keybd.ctrl = e.keysym.mod & KMOD_CTRL;
+	bool sdl_handle_key_event(const SDL_KeyboardEvent &e,
+	                          Event::Keyboard &keybd, bool down) {
+		// Update the state of the shift/control/alt keys
+		auto adj = [down](int &x) {
+			x += down ? 1 : -1;
+			x = std::max(0, std::min(2, x));
+		};
+		switch (e.keysym.sym) {
+			case SDLK_LSHIFT:
+			case SDLK_RSHIFT:
+				adj(m_shift);
+				break;
+			case SDLK_LCTRL:
+			case SDLK_RCTRL:
+				adj(m_ctrl);
+				break;
+			case SDLK_LALT:
+//			case SDLK_RALT: // Do not handle AltGr
+				adj(m_alt);
+				break;
+		}
+		if (!down) {
+			return false; // Only handle key presses
+		}
+
+		// Initialise the keyboard event
+		keybd.key = Event::Key::NONE;  // Not yet known
+		keybd.unichar = 0;             // Not yet known
+		keybd.shift = !!m_shift;
+		keybd.alt = !!m_alt;
+		keybd.ctrl = !!m_ctrl;
+
+		switch (e.keysym.sym) {
+			case SDLK_RETURN:
+			case SDLK_RETURN2:
+				keybd.key = Event::Key::ENTER;
+				return true;
+			case SDLK_TAB:
+				keybd.key = Event::Key::TAB;
+				return true;
+			case SDLK_BACKSPACE:
+				keybd.key = Event::Key::BACKSPACE;
+				return true;
+			case SDLK_ESCAPE:
+				keybd.key = Event::Key::ESCAPE;
+				return true;
+			case SDLK_UP:
+				keybd.key = Event::Key::UP;
+				return true;
+			case SDLK_DOWN:
+				keybd.key = Event::Key::DOWN;
+				return true;
+			case SDLK_LEFT:
+				keybd.key = Event::Key::LEFT;
+				return true;
+			case SDLK_RIGHT:
+				keybd.key = Event::Key::RIGHT;
+				return true;
+			case SDLK_INSERT:
+				keybd.key = Event::Key::INS;
+				return true;
+			case SDLK_DELETE:
+				keybd.key = Event::Key::DEL;
+				return true;
+			case SDLK_HOME:
+				keybd.key = Event::Key::HOME;
+				return true;
+			case SDLK_END:
+				keybd.key = Event::Key::END;
+				return true;
+			case SDLK_PAGEUP:
+				keybd.key = Event::Key::PAGE_UP;
+				return true;
+			case SDLK_PAGEDOWN:
+				keybd.key = Event::Key::PAGE_DOWN;
+				return true;
+			case SDLK_F1:
+			case SDLK_F2:
+			case SDLK_F3:
+			case SDLK_F4:
+			case SDLK_F5:
+			case SDLK_F6:
+			case SDLK_F7:
+			case SDLK_F8:
+			case SDLK_F9:
+			case SDLK_F10:
+			case SDLK_F12:
+				keybd.key =
+				    static_cast<Event::Key>(static_cast<int>(Event::Key::F1) +
+				                            (e.keysym.sym - SDLK_F1));
+				return true;
+			case SDLK_KP_0:
+			case SDLK_KP_1:
+			case SDLK_KP_2:
+			case SDLK_KP_3:
+			case SDLK_KP_4:
+			case SDLK_KP_5:
+			case SDLK_KP_6:
+			case SDLK_KP_7:
+			case SDLK_KP_8:
+			case SDLK_KP_9:
+				keybd.key =
+				    static_cast<Event::Key>(static_cast<int>(Event::Key::KP_0) +
+				                            (e.keysym.sym - SDLK_KP_0));
+				break;
+			case SDLK_KP_MULTIPLY:
+				keybd.key = Event::Key::KP_MULT;
+				break;
+			case SDLK_KP_PLUS:
+				keybd.key = Event::Key::KP_PLUS;
+				break;
+			case SDLK_KP_COMMA:
+				keybd.key = Event::Key::KP_COMMA;
+				break;
+			case SDLK_KP_MINUS:
+				keybd.key = Event::Key::KP_MINUS;
+				break;
+			case SDLK_KP_PERIOD:
+				keybd.key = Event::Key::KP_PERIOD;
+				break;
+			case SDLK_KP_DIVIDE:
+				keybd.key = Event::Key::KP_DIVIDE;
+				break;
+			case SDLK_KP_ENTER:
+				keybd.key = Event::Key::KP_ENTER;
+				break;
+			case SDLK_KP_EQUALS:
+				keybd.key = Event::Key::KP_EQUAL;
+				break;
+		}
+
 		const uint32_t s = e.keysym.sym;
+		const bool numlock = e.keysym.mod & KMOD_NUM;
 		const bool is_ascii_ctrl = (s <= 0x1F) || (s == 0x7F);
 		const bool is_unicode = s < 0x40000039;
 		const bool is_numpad = (s >= 0x40000059 && s <= 0x40000063);
 		const bool is_keypad = (s >= 0x40000054 && s <= 0x40000057);
-		const bool numlock = e.keysym.mod & KMOD_NUM;
-		keybd.is_char = !keybd.ctrl && !keybd.alt && (is_ascii_ctrl || is_unicode || (numlock && is_numpad) || is_keypad);
-		keybd.codepoint = e.keysym.sym;
-		return !keybd.is_char || is_ascii_ctrl;  // Characters are handled by TEXT_INPUT
+		const bool is_char = (is_unicode || (numlock && is_numpad) || is_keypad) && !is_ascii_ctrl;
+		if (!is_char) {
+			return keybd.key != Event::Key::NONE; // Only allow the keys handled above
+		}
+
+		if (keybd.ctrl || keybd.alt) {
+			keybd.unichar = e.keysym.sym;
+			return true;
+		}
+
+		return false; // Handled by TEXT_INPUT
 	}
 
-	static bool sdl_translate_text_event(const SDL_TextInputEvent &e,
-	                                     Event::Text &txt) {
+	bool sdl_handle_text_event(const SDL_TextInputEvent &e, Event::Text &txt) {
 		size_t i = 0;
 		for (; i < sizeof(e.text); i++) {
 			char c = e.text[i];
@@ -188,6 +324,9 @@ private:
 			txt.buf[i] = c;
 		}
 		txt.buf_len = i;
+		txt.shift = m_shift;
+		txt.ctrl = m_ctrl;
+		txt.alt = m_alt;
 		return txt.buf_len > 0;
 	}
 
@@ -202,7 +341,10 @@ public:
 	      m_surf(nullptr),
 	      m_done(false),
 	      m_initialised(false),
-	      m_gui_thread(sdl_main_thread, this) {
+	      m_gui_thread(sdl_main_thread, this),
+	      m_shift(0),
+	      m_ctrl(0),
+	      m_alt(0) {
 		// Wait for the GUI thread to initialise
 		std::unique_lock<std::mutex> lock(m_gui_mutex);
 		m_gui_cond_var.wait(lock, [this] { return !!m_initialised; });
@@ -282,19 +424,17 @@ public:
 					event.type = Event::Type::QUIT;
 					break;
 				case SDL_KEYDOWN: {
-					event.type = Event::Type::KEYBD_KEY_DOWN;
-					return sdl_translate_keyboard_event(sdl_ev.key,
-					                                    event.data.keybd);
+					event.type = Event::Type::KEY_INPUT;
+					return sdl_handle_key_event(sdl_ev.key, event.data.keybd,
+					                            true);
 				}
 				case SDL_KEYUP: {
-					event.type = Event::Type::KEYBD_KEY_UP;
-					return sdl_translate_keyboard_event(sdl_ev.key,
-					                                    event.data.keybd);
+					sdl_handle_key_event(sdl_ev.key, event.data.keybd, false);
+					return false;
 				}
 				case SDL_TEXTINPUT: {
 					event.type = Event::Type::TEXT_INPUT;
-					return sdl_translate_text_event(sdl_ev.text,
-					                                event.data.text);
+					return sdl_handle_text_event(sdl_ev.text, event.data.text);
 				}
 			}
 			return true;
