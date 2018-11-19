@@ -1,4 +1,3 @@
 build*/
 subprojects/libfoxenunit
 subprojects/libvterm
-subprojects/vtparse

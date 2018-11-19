@@ -32,8 +32,10 @@
 
 #include <inktty/backends/sdl.hpp>
 
-namespace inktty {
 
+#include <time.h>
+
+namespace inktty {
 /******************************************************************************
  * Class SDLBackend::Impl                                                     *
  ******************************************************************************/
@@ -73,7 +75,12 @@ private:
 	 */
 	static void sdl_main_thread(SDLBackend::Impl *self) {
 		// Initialise SDL
+		SDL_SetHint(SDL_HINT_FRAMEBUFFER_ACCELERATION, "1");
+		SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
+		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
+		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
 		SDL_Init(SDL_INIT_VIDEO);
+
 
 		// Create a window with the given size and abort if this fails
 		self->m_wnd = SDL_CreateWindow("inktty", SDL_WINDOWPOS_UNDEFINED,
@@ -102,14 +109,8 @@ private:
 					// Update the surface size in case it changed
 					if (!self->m_surf || (self->m_width != self->m_surf->w ||
 					                      self->m_height != self->m_surf->h)) {
-						if (self->m_surf) {
-							SDL_FreeSurface(self->m_surf);
-						}
-
-						// Create a surface as our back buffer
-						self->m_surf = SDL_CreateRGBSurface(
-						    0, self->m_width, self->m_height, 32, 0x000000FF,
-						    0x0000FF00, 0x00FF0000, 0xFF000000);
+						// Fetch the window surface
+						self->m_surf = SDL_GetWindowSurface(self->m_wnd);
 					}
 
 					// Lock the source surface
@@ -130,20 +131,17 @@ private:
 						// Unlock the surface
 						SDL_UnlockSurface(self->m_surf);
 
+						// Wake up the main thread
+						self->m_locked = false;
+						self->m_gui_cond_var.notify_one();
+
 						// Blit to the window
-						SDL_Rect r{0, 0, self->m_width, self->m_height};
-						SDL_Surface *screen = SDL_GetWindowSurface(self->m_wnd);
-						SDL_BlitSurface(self->m_surf, &r, screen, &r);
 						SDL_UpdateWindowSurface(self->m_wnd);
 
 						// Invalidate the pixel pointers
 						self->m_pixels = nullptr;
 						self->m_pitch = 0;
 					}
-
-					// Wake up the main thread
-					self->m_locked = false;
-					self->m_gui_cond_var.notify_one();
 				} else {
 					// Forward the event to the main thread, notify the main
 					// thread using the event_fd
@@ -154,10 +152,7 @@ private:
 			}
 		}
 
-		// Destroy the surface and window
-		if (self->m_surf) {
-			SDL_FreeSurface(self->m_surf);
-		}
+		// Destroy the window
 		SDL_DestroyWindow(self->m_wnd);
 
 		// Finalise SDL

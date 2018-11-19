@@ -16,13 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <vtparse/vtparse.h>
-
+#include <vterm.h>
 #include <inktty/term/vterm.hpp>
 
-#include <vterm.h>
-
-#include <iostream>
 
 namespace inktty {
 /******************************************************************************
@@ -73,7 +69,6 @@ private:
 	static int vterm_moverect(VTermRect dest, VTermRect src, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self; // TODO
-		std::cout << "vterm_moverect (unhandled)" << std::endl;
 		return 1;
 	}
 
@@ -179,7 +174,6 @@ private:
 	                             const VTermLineInfo *oldinfo, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self; // TODO
-		std::cout << "vterm_setlineinfo (unhandled)" << std::endl;
 		return 1;
 	}
 

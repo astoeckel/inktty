@@ -41,28 +41,28 @@ struct RGBA {
 	/**
 	 * R, G, B value.
 	 */
-	uint8_t r, g, b, a;
+	uint8_t b, g, r, a;
 
 	/**
 	 * Default constructor, initialises all values to zero.
 	 */
-	constexpr RGBA() : r(0U), g(0U), b(0U), a(0U) {}
+	constexpr RGBA() : b(0U), g(0U), r(0U), a(0U) {}
 
 	/**
 	 * Constructs a new colour from the given RGBA hex colour code. Sets the
 	 * alpha channel to maximum opacity.
 	 */
 	constexpr RGBA(uint32_t hex)
-	    : r((hex & 0xFF0000U) >> 16U),
+	    : b(hex & 0xFFU),
 	      g((hex & 0xFF00U) >> 8U),
-	      b(hex & 0xFFU),
+	      r((hex & 0xFF0000U) >> 16U),
 	      a(0xFFU) {}
 
 	/**
 	 * Constructs a new RGBA colour.
 	 */
 	constexpr RGBA(uint8_t r, uint8_t g, uint8_t b, uint8_t a = 0xFFU)
-	    : r(r), g(g), b(b), a(a) {}
+	    : b(b), g(g), r(r), a(a) {}
 
 	static const RGBA Black;
 	static const RGBA White;
