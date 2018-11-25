@@ -39,14 +39,26 @@ namespace inktty {
  */
 struct Style {
 	/**
+	 * If true, uses the default foreground color and ignores "fg". This is the
+	 * default.
+	 */
+	bool default_fg;
+
+	/**
+	 * If true, uses the default background color and ignores "bg". This is the
+	 + default.
+	 */
+	bool default_bg;
+
+	/**
 	 * Foreground or text colour.
 	 */
-	RGBA fg;
+	Color fg;
 
 	/**
 	 * Background colour.
 	 */
-	RGBA bg;
+	Color bg;
 
 	/**
 	 * True if the foreground is not rendered.

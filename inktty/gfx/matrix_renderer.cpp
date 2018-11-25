@@ -32,6 +32,7 @@ MatrixRenderer::MatrixRenderer(Font &font, Display &display, Matrix &matrix,
     : m_font(font),
       m_display(display),
       m_matrix(matrix),
+      m_palette(Palette::Default256Colours),
       m_font_size(font_size),
       m_orientation(orientation),
       m_cols(0),
@@ -48,6 +49,10 @@ MatrixRenderer::MatrixRenderer(Font &font, Display &display, Matrix &matrix,
 
 	// Compute the geometry
 	update_geometry();
+
+	for (size_t i = 0; i < 16; i++) {
+		m_palette[i] = Palette::Solarized16Colours[i];
+	}
 }
 
 void MatrixRenderer::update_geometry() {
@@ -126,8 +131,14 @@ Rect MatrixRenderer::get_coords(size_t row, size_t col) {
 
 Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase) {
 	/* Fetch foreground and background colour */
-	RGBA fg = cell.style.fg;
-	RGBA bg = cell.style.bg;
+	RGBA fg = cell.style.fg.rgb(m_palette);
+	RGBA bg = cell.style.bg.rgb(m_palette);
+	if (cell.style.default_fg) {
+		fg = RGBA::SolarizedWhite;
+	}
+	if (cell.style.default_bg) {
+		bg = RGBA::SolarizedBlack;
+	}
 	if (cell.cursor ^ cell.style.inverse) {
 		std::swap(fg, bg);
 	}

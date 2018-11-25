@@ -85,12 +85,13 @@ private:
 		return 1;
 	}
 
-	static RGBA vterm_convert_color(const VTermColor &c) {
-		return RGBA{c.red, c.green, c.blue, 255U};
-	}
-
-	static VTermColor vterm_convert_color(const RGBA &c) {
-		return VTermColor{c.r, c.g, c.b};
+	static Color vterm_convert_color(const VTermColor &c) {
+		if (VTERM_COLOR_IS_INDEXED(&c)) {
+			return Color(c.indexed.idx);
+		} else if (VTERM_COLOR_IS_RGB(&c)) {
+			return Color(RGBA{c.rgb.red, c.rgb.green, c.rgb.blue, 255U});
+		}
+		return Color(0);
 	}
 
 	static int vterm_setpenattr(VTermAttr attr, VTermValue *val, void *user) {
@@ -119,9 +120,11 @@ private:
 				break;
 			case VTERM_ATTR_FOREGROUND:
 				self.m_style.fg = vterm_convert_color(val->color);
+				self.m_style.default_fg = VTERM_COLOR_IS_DEFAULT_FG(&val->color);
 				break;
 			case VTERM_ATTR_BACKGROUND:
 				self.m_style.bg = vterm_convert_color(val->color);
+				self.m_style.default_bg = VTERM_COLOR_IS_DEFAULT_BG(&val->color);
 				break;
 			default:
 				break; /* Ignore everything else */
@@ -299,21 +302,17 @@ public:
 	~Impl() { vterm_free(m_vt); }
 
 	void reset() {
+		/* Use index 7/0 as default fg/bg colors */
+		VTermColor vt_default_fg;
+		VTermColor vt_default_bg;
+		vterm_color_indexed(&vt_default_fg, 7);
+		vterm_color_indexed(&vt_default_bg, 0);
+		vterm_state_set_default_colors(m_vt_state, &vt_default_fg,
+		                               &vt_default_bg);
+
 		vterm_state_reset(m_vt_state, 1);
 		m_matrix.reset();
 		m_style = Style{};
-	}
-
-	void set_palette(const RGBA &default_fg, const RGBA &default_bg,
-	                 const Palette &palette) {
-		const VTermColor vt_default_fg = vterm_convert_color(default_fg);
-		const VTermColor vt_default_bg = vterm_convert_color(default_bg);
-		vterm_state_set_default_colors(m_vt_state, &vt_default_fg,
-		                               &vt_default_bg);
-		for (size_t i = 0; i < palette.size(); i++) {
-			const VTermColor vt_palette_color = vterm_convert_color(palette[i]);
-			vterm_state_set_palette_color(m_vt_state, i, &vt_palette_color);
-		}
 	}
 
 	void send_key(Event::Key key, bool shift, bool ctrl, bool alt) {
@@ -351,11 +350,6 @@ VTerm::VTerm(Matrix &matrix) : m_impl(new Impl(matrix)) {}
 VTerm::~VTerm() {}
 
 void VTerm::reset() { m_impl->reset(); }
-
-void VTerm::set_palette(const RGBA &default_fg, const RGBA &default_bg,
-                        const Palette &palette) {
-	m_impl->set_palette(default_fg, default_bg, palette);
-}
 
 void VTerm::send_key(Event::Key key, bool shift, bool ctrl, bool alt) {
 	m_impl->send_key(key, shift, ctrl, alt);
