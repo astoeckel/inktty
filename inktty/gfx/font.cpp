@@ -24,6 +24,7 @@
 #include <ft2build.h>
 #include FT_FREETYPE_H
 #include FT_BITMAP_H
+#include FT_MODULE_H
 
 #include <inktty/gfx/font.hpp>
 
@@ -42,14 +43,37 @@ class Freetype {
 private:
 	FT_Library m_library;
 
+	const char *ft_error_string(FT_Error code) {
+#include FT_FREETYPE_H
+#undef __FTERRORS_H__
+#define FT_ERRORDEF(e, v, s) \
+	case e:                  \
+		return s;
+#define FT_ERROR_START_LIST switch (code) {
+#define FT_ERROR_END_LIST }
+#include FT_ERRORS_H
+		return "Unkown freetype error";
+	}
+
+	FT_Error handle_err(FT_Error code) {
+		if (code != FT_Err_Ok) {
+			throw std::runtime_error(ft_error_string(code));
+		}
+	}
+
 	/**
 	 * Creates the FreetypeLibrary instance.
 	 */
 	Freetype() {
-		FT_Error err = FT_Init_FreeType(&m_library);
-		if (err != FT_Err_Ok) {
-			throw std::runtime_error("Error while initializing freetype2.");
-		}
+		FT_Bool value;
+		handle_err(FT_Init_FreeType(&m_library));
+
+		handle_err(FT_Property_Set(m_library, "autofitter",
+			                           "no-stem-darkening",
+			                           &(value = false)));
+		handle_err(FT_Property_Set(m_library, "autofitter",
+			                           "warping",
+			                           &(value = true)));
 	}
 
 public:
