@@ -108,7 +108,6 @@ static uint32_t PROBE_CHARS[] = {
     0x03B2,  // Greek small letter β
     0x03B6,  // Greek small letter ζ
     0x03C1,  // Greek small letter ρ
-    0x0402,  // Cyrillic capital letter Ђ
     0x0410,  // Cyrillic capital letter А
     0x0424,  // Cyrillic capital letter Ф
     0x0428,  // Cyrillic capital letter Ш
