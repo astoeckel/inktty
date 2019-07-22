@@ -22,6 +22,9 @@ dep_freetype = dependency('freetype2', required: true)
 dep_vterm = dependency('vterm',
 	fallback:['vterm', 'dep_vterm'],
 	required: true)
+dep_termkey = dependency('termkey',
+	fallback:['termkey', 'dep_termkey'],
+	required: true)
 
 # utf8proc library
 inc_utf8proc = include_directories('./lib')
@@ -89,7 +92,7 @@ if dep_sdl.found()
 		],
 		include_directories: inc_inktty,
 		link_with: [lib_inktty],
-		dependencies: [dep_sdl, dep_threads]
+		dependencies: [dep_sdl, dep_threads, dep_termkey]
 	)
 endif
 
@@ -102,6 +105,7 @@ exe_inktty_fbdev = executable(
 		'inktty/main_fbdev.cpp',
 	],
 	include_directories: inc_inktty,
+	dependencies: [dep_termkey],
 	link_with: [lib_inktty],
 )
 

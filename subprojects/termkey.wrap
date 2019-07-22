@@ -1,0 +1,4 @@
+[wrap-git]
+directory=libtermkey
+url=https://github.com/astoeckel/libtermkey
+revision=head

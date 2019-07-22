@@ -1,0 +1,4 @@
+[wrap-git]
+directory=unibilium
+url=https://github.com/astoeckel/unibilium
+revision=head
