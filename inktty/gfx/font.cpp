@@ -59,6 +59,7 @@ private:
 		if (code != FT_Err_Ok) {
 			throw std::runtime_error(ft_error_string(code));
 		}
+		return code;
 	}
 
 	/**
