@@ -16,6 +16,7 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <utf8proc/utf8proc.h>
 #include <vterm.h>
 #include <inktty/term/vterm.hpp>
 
@@ -36,8 +37,23 @@ private:
 	 */
 	static int vterm_putglyph(VTermGlyphInfo *info, VTermPos pos, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
-		self.m_matrix.set(info->chars[0], self.m_style,
-		                  Point{pos.col + 1, pos.row + 1});
+
+		// Count the number of characters in the buffer
+		ssize_t len;
+		for (len = 0; info->chars[len]; len++)
+			;
+
+		// Try to combine multiple glyphs into a single one
+		uint32_t glyph = 0;
+		if (utf8proc_normalize_utf32(
+		        (utf8proc_int32_t *)info->chars, len,
+		        static_cast<utf8proc_option_t>(UTF8PROC_STRIPCC |
+		                                       UTF8PROC_COMPOSE)) > 0) {
+			glyph = info->chars[0];
+		}
+
+		// Set the glyph in the matrix
+		self.m_matrix.set(glyph, self.m_style, Point{pos.col + 1, pos.row + 1});
 		return 1;
 	}
 
