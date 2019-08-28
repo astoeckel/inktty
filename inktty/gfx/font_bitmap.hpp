@@ -17,43 +17,44 @@
  */
 
 /**
- * @file inktty.hpp
+ * @file font_bitmap.hpp
  *
- * The Inktty class implements the main application.
+ * Provides a 8x16 pixel fallback font
  *
  * @author Andreas Stöckel
  */
 
-#ifndef INKTTY_INKTTY_HPP
-#define INKTTY_INKTTY_HPP
+#ifndef INKTTY_GFX_FONT_BITMAP_HPP
+#define INKTTY_GFX_FONT_BITMAP_HPP
 
 #include <memory>
 
-#include <inktty/config/configuration.hpp>
-#include <inktty/term/events.hpp>
-#include <inktty/gfx/display.hpp>
+#include <inktty/gfx/font.hpp>
 
 namespace inktty {
-
-class Inktty {
+/**
+ * Fixed bitmap font used as a fallback if not TTF font is specified.
+ */
+class FontBitmap : public Font {
 private:
-	class Impl;
+	struct Impl;
 	std::unique_ptr<Impl> m_impl;
 
 public:
-	/**
-	 * Creates a new Inktty instance.
-	 *
-	 * @param event_sources is a list of external event sources.
-	 * @param display is the target display.
-	 */
-	Inktty(const Configuration &config, const std::vector<EventSource *> &event_sources, Display &display);
+	static FontBitmap Font8x16;
 
-	~Inktty();
+	FontBitmap(const uint8_t *mem, int stride, int width, int height, int n,
+	           const uint32_t *codepage);
 
-	void run();
+	~FontBitmap() override;
+
+	const GlyphBitmap *render(uint32_t glyph, unsigned int size,
+	                          bool monochrome = false,
+	                          unsigned int orientation = 0) override;
+
+	MonospaceFontMetrics metrics(int size) const override;
 };
 
 }  // namespace inktty
 
-#endif /* INKTTY_INKTTY_HPP */
+#endif /* INKTTY_GFX_FONT_BITMAP_HPP */

@@ -36,13 +36,23 @@ lib_utf8proc = library(
 	include_directories: [inc_utf8proc]
 )
 
+# cpptoml dependencies
+inc_cpptoml = include_directories('./lib/cpptoml/include')
+
 # Main library
 inc_inktty = include_directories('.')
 lib_inktty = library(
 	'inktty',
 	[
+		'inktty/config/argparse.cpp',
+		'inktty/config/configuration.cpp',
+		'inktty/config/toml.cpp',
+		'inktty/fontdata/font_8x16.c',
 		'inktty/gfx/display.cpp',
 		'inktty/gfx/font.cpp',
+		'inktty/gfx/font_bitmap.cpp',
+		'inktty/gfx/font_cache.cpp',
+#		'inktty/gfx/font_ttf.cpp',
 		'inktty/gfx/matrix_renderer.cpp',
 		'inktty/term/events.cpp',
 		'inktty/term/matrix.cpp',
@@ -53,8 +63,8 @@ lib_inktty = library(
 		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
 	],
-	include_directories: [inc_inktty, inc_utf8proc],
-	dependencies: [dep_freetype, dep_vterm],
+	include_directories: [inc_inktty, inc_utf8proc, inc_cpptoml],
+	dependencies: [dep_vterm],
 	link_with: [lib_utf8proc]
 )
 

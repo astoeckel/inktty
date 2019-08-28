@@ -66,8 +66,6 @@ struct RGBA {
 
 	static const RGBA Black;
 	static const RGBA White;
-	static const RGBA SolarizedBlack;
-	static const RGBA SolarizedWhite;
 
 	bool operator==(const RGBA &o) const {
 		return (r == o.r) && (b == o.b) && (g == o.g) && (a == o.a);
@@ -105,7 +103,7 @@ public:
 	/**
 	 * Constructs a new empty palette of the given size.
 	 */
-	Palette(int size) : m_size(size) {
+	Palette(int size=0) : m_size(size) {
 		/* Make sure the size is valid */
 		assert(size >= 0 && size <= 256);
 
@@ -126,7 +124,6 @@ public:
 	}
 
 	static const Palette Default16Colours;
-	static const Palette Solarized16Colours;
 	static const Palette Default256Colours;
 
 	/**
@@ -170,6 +167,12 @@ public:
 	Color(int idx) : m_mode(Mode::Indexed), m_idx(idx) {}
 
 	Color(const RGBA &rgba) : m_mode(Mode::RGB), m_rgb(rgba) {}
+
+	int idx() const { return is_indexed() ? m_idx : -1; }
+
+	bool is_indexed() const { return m_mode == Mode::Indexed; }
+
+	bool is_rgb() const { return m_mode == Mode::RGB;}
 
 	/**
 	 * Returns the RGBA colour represented by this Colour instance. If the colour

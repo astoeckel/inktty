@@ -32,7 +32,6 @@
 #define INKTTY_GFX_FONT_HPP
 
 #include <cstdint>
-#include <memory>
 #include <vector>
 
 namespace inktty {
@@ -177,34 +176,11 @@ struct MonospaceFontMetrics {
  * assuming that the font is a monospace font.
  */
 class Font {
-private:
-	class Impl;
-	std::unique_ptr<Impl> m_impl;
-
 public:
-	/**
-	 * Creates a new instance of the Font class bound to the given True Type
-	 * Font file.
-	 *
-	 * @param ttf_file is the name of the True Type Font file that should be
-	 * opened.
-	 * @param dpi is the resolution of the display. This number is used when
-	 * converting between sizes in points and pixels.
-	 * @param max_cache_size is the maximum number of glyphs that is stored
-	 * in the cache.
-	 */
-	Font(const char *ttf_file, unsigned int dpi = 96,
-	     unsigned int max_cache_size = 1000);
-
 	/**
 	 * Destroys the open font handle.
 	 */
-	~Font();
-
-	/**
-	 * Clears the font cache.
-	 */
-	void clear();
+	virtual ~Font();
 
 	/**
 	 * Renders the given Unicode glyph to a bitmap with the specified style to a
@@ -216,12 +192,12 @@ public:
 	 * @param monochrome if true the glyph is rendered without antialiasing.
 	 * @param orientation is the orientation of the glyph in multiples of 90
 	 * degrees counter clock-wise.
-	 * @return a pointer at the Glyph or nullptr if the glyph could not be
-	 * extracted from the font.
+	 * @return a pointer at the Glyph or nullptr if the glyph is not present
+	 * in the font.
 	 */
-	const GlyphBitmap *render(uint32_t glyph, unsigned int size,
+	virtual const GlyphBitmap *render(uint32_t glyph, unsigned int size,
 	                          bool monochrome = false,
-	                          unsigned int orientation = 0);
+	                          unsigned int orientation = 0) = 0;
 
 	/**
 	 * Returns the font metrics assuming this font is a monospace font.
@@ -230,7 +206,28 @@ public:
 	 * @return a datastructure containing information about the cell width and
 	 * height in pixels.
 	 */
-	MonospaceFontMetrics metrics(int size) const;
+	virtual MonospaceFontMetrics metrics(int size) const = 0;
+};
+
+/**
+ * The FontFamily class groups multiple variants of the same font, for example
+ * a regular, italic, and bold version of the font.
+ */
+class FontFamily {
+private:
+/*	class Impl;
+	std::unique_ptr<Impl> m_impl;*/
+
+public:
+	enum class Style {
+		Regular, Italic
+	};
+
+	enum class Weight {
+		Regular = 400, Bold = 700
+	};
+
+
 };
 
 }  // namespace inktty

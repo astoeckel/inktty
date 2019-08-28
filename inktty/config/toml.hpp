@@ -16,19 +16,25 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <iostream>
+/**
+ * This file contains the structure holding information about the current
+ * terminal setup.
+ */
 
-#include <inktty/backends/fbdev.hpp>
-#include <inktty/backends/kbdstdin.hpp>
+#ifndef INKTTY_CONFIG_TOML_HPP
+#define INKTTY_CONFIG_TOML_HPP
+
+#include <iosfwd>
+
 #include <inktty/config/configuration.hpp>
-#include <inktty/inktty.hpp>
 
-using namespace inktty;
+namespace inktty {
+namespace config {
 
-int main(int argc, const char *argv[]) {
-	Configuration config(argc, argv);
-	FbDevDisplay display("/dev/fb0");
-	KbdStdin keyboard;
-	Inktty(config, {&keyboard}, display).run();
-	return 0;
+Configuration from_toml(std::istream &is);
+
+
 }
+}
+
+#endif /* INKTTY_CONFIG_TOML_HPP */

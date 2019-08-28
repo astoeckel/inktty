@@ -136,7 +136,6 @@ static bool termkey_key_to_event(TermKeyKey &key, Event &event) {
 }
 
 bool KbdStdin::event_get(EventSource::PollMode mode, Event &event) {
-
 	if (mode == EventSource::PollIn) {
 		TermKeyKey key;
 		TermKeyResult ret = termkey_waitkey(m_data->tk, &key);
@@ -150,6 +149,7 @@ bool KbdStdin::event_get(EventSource::PollMode mode, Event &event) {
 				return false;
 		}
 	}
+	return false;
 }
 
 }  // namespace inktty

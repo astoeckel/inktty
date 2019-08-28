@@ -16,20 +16,19 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <thread>
-#include <chrono>
+#include <iostream>
 
-#include <inktty/backends/sdl.hpp>
 #include <inktty/backends/kbdstdin.hpp>
+#include <inktty/backends/sdl.hpp>
+#include <inktty/config/configuration.hpp>
 #include <inktty/inktty.hpp>
 
 using namespace inktty;
 
-
-int main(int argc, char *argv[])
-{
-/*	KbdStdin keyboard;*/
+int main(int argc, const char *argv[]) {
+	Configuration config(argc, argv);
+	KbdStdin keyboard;
 	SDLBackend display(1600, 1200);
-	Inktty({&display/*, &keyboard*/}, display).run();
+	Inktty(config, {&display, &keyboard}, display).run();
 	return 0;
 }

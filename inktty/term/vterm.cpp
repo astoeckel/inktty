@@ -18,6 +18,9 @@
 
 #include <utf8proc/utf8proc.h>
 #include <vterm.h>
+
+#include <iostream>
+
 #include <inktty/term/vterm.hpp>
 
 namespace inktty {
@@ -84,6 +87,7 @@ private:
 	static int vterm_moverect(VTermRect dest, VTermRect src, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self;  // TODO
+		             //		std::cout << "vterm_moverect" << std::endl;
 		return 1;
 	}
 
@@ -136,11 +140,13 @@ private:
 				break;
 			case VTERM_ATTR_FOREGROUND:
 				self.m_style.fg = vterm_convert_color(val->color);
-				self.m_style.default_fg = VTERM_COLOR_IS_DEFAULT_FG(&val->color);
+				self.m_style.default_fg =
+				    VTERM_COLOR_IS_DEFAULT_FG(&val->color);
 				break;
 			case VTERM_ATTR_BACKGROUND:
 				self.m_style.bg = vterm_convert_color(val->color);
-				self.m_style.default_bg = VTERM_COLOR_IS_DEFAULT_BG(&val->color);
+				self.m_style.default_bg =
+				    VTERM_COLOR_IS_DEFAULT_BG(&val->color);
 				break;
 			default:
 				break; /* Ignore everything else */
@@ -183,12 +189,14 @@ private:
 	static int vterm_bell(void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self;  // TODO
+		             //		std::cout << "vterm_bell" << std::endl;
 		return 1;
 	}
 
 	static int vterm_resize(int rows, int cols, VTermPos *delta, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self;  // TODO
+		             //		std::cout << "vterm_resize" << std::endl;
 		return 1;
 	}
 
@@ -196,6 +204,43 @@ private:
 	                             const VTermLineInfo *oldinfo, void *user) {
 		Impl &self = *static_cast<Impl *>(user);
 		(void)self;  // TODO
+		/*		std::cout << "vterm_setlineinfo " << newinfo->doublewidth << " "
+		                  << newinfo->doubleheight << std::endl;*/
+		return 1;
+	}
+
+	static int vterm_unrecognised_control(unsigned char control, void *user) {
+		Impl &self = *static_cast<Impl *>(user);
+		(void)self;  // TODO
+		/*		std::cout << "vterm_unrecognised_control " << control <<
+		 * std::endl;*/
+		return 1;
+	}
+
+	static int vterm_unrecognised_csi(const char *leader, const long args[],
+	                                  int argcount, const char *intermed,
+	                                  char command, void *user) {
+		Impl &self = *static_cast<Impl *>(user);
+		(void)self;  // TODO
+		/*		std::cout << "vterm_unrecognised_csi " << leader << std::endl;*/
+		return 1;
+	}
+
+	static int vterm_unrecognised_osc(const char *command, size_t cmdlen,
+	                                  void *user) {
+		Impl &self = *static_cast<Impl *>(user);
+		(void)self;  // TODO
+		/*		std::cout << "vterm_unrecognised_osc " << std::string(command,
+		 * cmdlen) << std::endl;*/
+		return 1;
+	}
+
+	static int vterm_unrecognised_dcs(const char *command, size_t cmdlen,
+	                                  void *user) {
+		Impl &self = *static_cast<Impl *>(user);
+		(void)self;  // TODO
+		/*		std::cout << "vterm_unrecognised_dcs " <<  std::string(command,
+		 * cmdlen) << std::endl;*/
 		return 1;
 	}
 
@@ -303,6 +348,7 @@ private:
 	}
 
 	static const VTermStateCallbacks callbacks;
+	static const VTermParserCallbacks unrecognised_fallbacks;
 
 public:
 	Impl(Matrix &matrix) : m_matrix(matrix) {
@@ -311,7 +357,9 @@ public:
 
 		m_vt_state = vterm_obtain_state(m_vt);
 		vterm_state_set_callbacks(m_vt_state, &callbacks, this);
-		vterm_state_set_bold_highbright(m_vt_state, true);
+		vterm_state_set_unrecognised_fallbacks(m_vt_state,
+		                                       &unrecognised_fallbacks, this);
+		vterm_state_set_bold_highbright(m_vt_state, false);
 		vterm_state_reset(m_vt_state, 1);
 	}
 
@@ -356,6 +404,15 @@ const VTermStateCallbacks VTerm::Impl::callbacks{
     VTerm::Impl::vterm_setpenattr, VTerm::Impl::vterm_settermprop,
     VTerm::Impl::vterm_bell,       VTerm::Impl::vterm_resize,
     VTerm::Impl::vterm_setlineinfo};
+
+const VTermParserCallbacks VTerm::Impl::unrecognised_fallbacks{
+    nullptr,
+    VTerm::Impl::vterm_unrecognised_control,
+    nullptr,
+    VTerm::Impl::vterm_unrecognised_csi,
+    VTerm::Impl::vterm_unrecognised_osc,
+    VTerm::Impl::vterm_unrecognised_dcs,
+    nullptr};
 
 /******************************************************************************
  * Class VT100                                                                *

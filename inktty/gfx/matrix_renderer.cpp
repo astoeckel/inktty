@@ -27,12 +27,13 @@ namespace inktty {
  * Class MatrixRenderer                                                       *
  ******************************************************************************/
 
-MatrixRenderer::MatrixRenderer(Font &font, Display &display, Matrix &matrix,
+MatrixRenderer::MatrixRenderer(const Configuration &config, Font &font,
+                               Display &display, Matrix &matrix,
                                unsigned int font_size, unsigned int orientation)
-    : m_font(font),
+    : m_config(config),
+      m_font(font),
       m_display(display),
       m_matrix(matrix),
-      m_palette(Palette::Default256Colours),
       m_font_size(font_size),
       m_orientation(orientation),
       m_cols(0),
@@ -49,10 +50,6 @@ MatrixRenderer::MatrixRenderer(Font &font, Display &display, Matrix &matrix,
 
 	// Compute the geometry
 	update_geometry();
-
-	for (size_t i = 0; i < 16; i++) {
-		m_palette[i] = Palette::Solarized16Colours[i];
-	}
 }
 
 void MatrixRenderer::update_geometry() {
@@ -60,6 +57,7 @@ void MatrixRenderer::update_geometry() {
 	const MonospaceFontMetrics m = m_font.metrics(m_font_size);
 	m_cell_w = m.cell_width;
 	m_cell_h = m.cell_height;
+	std::cout << "Font metrics: " << m_cell_w << ", " << m_cell_h << std::endl;
 
 	/* Fetch the bounding box */
 	const int b_x0 = m_bounds.x0, b_y0 = m_bounds.y0;
@@ -129,15 +127,27 @@ Rect MatrixRenderer::get_coords(size_t row, size_t col) {
 	__builtin_unreachable();
 }
 
-Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase) {
+Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
+                               bool erase) {
 	/* Fetch foreground and background colour */
-	RGBA fg = cell.style.fg.rgb(m_palette);
-	RGBA bg = cell.style.bg.rgb(m_palette);
+	const auto &cc = m_config.colors;  // color config
+	Color cfg = cell.style.fg, cbg = cell.style.bg;
+	if (cc.use_bright_on_bold && cell.style.bold &&
+	    cell.style.fg.is_indexed() && cell.style.fg.idx() < 8) {
+		cfg = Color(cell.style.fg.idx() + 8);
+	}
+
+	/* Convert the colours to RGBA */
+	RGBA fg, bg;
 	if (cell.style.default_fg) {
-		fg = RGBA::SolarizedWhite;
+		fg = cc.default_fg;
+	} else {
+		fg = cfg.rgb(cc.palette);
 	}
 	if (cell.style.default_bg) {
-		bg = RGBA::SolarizedBlack;
+		bg = cc.default_bg;
+	} else {
+		bg = cbg.rgb(cc.palette);
 	}
 	if (cell.cursor ^ cell.style.inverse) {
 		std::swap(fg, bg);
@@ -155,8 +165,9 @@ Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 	    m_font.render(cell.glyph, m_font_size, false, m_orientation);
 	if (g) {
 		gr = Rect::sized(r.x0 + g->x, r.y0 + g->y, g->w, g->h);
-		m_display.blit(Display::Layer::Presentation, fg, g->buf(), g->stride,
-		               gr, erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
+		m_display.blit(
+		    Display::Layer::Presentation, fg, g->buf(), g->stride, gr,
+		    erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
 	}
 
 	return r.grow(gr);
@@ -176,7 +187,8 @@ void MatrixRenderer::draw(bool redraw) {
 	// Either redraw the entire screen or fetch a partial screen update
 	if (redraw) {
 		m_display.fill(Display::Layer::Background, RGBA::Black, m_bounds);
-		m_display.fill(Display::Layer::Presentation, RGBA(0, 0, 0, 0), m_bounds);
+		m_display.fill(Display::Layer::Presentation, RGBA(0, 0, 0, 0),
+		               m_bounds);
 		Matrix::CellArray cells = m_matrix.cells();
 		Matrix::Cell cell_old;
 		for (size_t i = 0; i < m_matrix.size().y; i++) {
@@ -192,7 +204,8 @@ void MatrixRenderer::draw(bool redraw) {
 		for (size_t i = 0; i < updates.size(); i++) {
 			const Matrix::CellUpdate &u = updates[i];
 			const Rect r1 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.old, true);
-			const Rect r2 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.current, false);
+			const Rect r2 =
+			    draw_cell(u.pos.y - 1, u.pos.x - 1, u.current, false);
 			m_display.commit(r1.grow(r2), Display::CommitMode::Full);
 		}
 	}
@@ -207,7 +220,8 @@ void MatrixRenderer::set_orientation(unsigned int orientation) {
 	/* Trigger a full update if the orientation changed */
 	if (orientation != m_orientation) {
 		m_display.fill(Display::Layer::Background, RGBA::Black, m_bounds);
-		m_display.fill(Display::Layer::Presentation, RGBA(0, 0, 0, 0), m_bounds);
+		m_display.fill(Display::Layer::Presentation, RGBA(0, 0, 0, 0),
+		               m_bounds);
 		m_orientation = orientation;
 		m_needs_geometry_update = true;
 	}

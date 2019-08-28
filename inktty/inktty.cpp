@@ -17,10 +17,13 @@
  */
 
 #include <iostream>
+#include <memory>
 
 #include <time.h>
 
 #include <inktty/gfx/font.hpp>
+#include <inktty/gfx/font_bitmap.hpp>
+//#include <inktty/gfx/font_ttf.hpp>
 #include <inktty/gfx/matrix_renderer.hpp>
 #include <inktty/inktty.hpp>
 #include <inktty/term/matrix.hpp>
@@ -40,9 +43,10 @@ namespace inktty {
 
 class Inktty::Impl {
 private:
+	const Configuration &m_config;
 	std::vector<EventSource *> m_event_sources;
 	Display &m_display;
-	Font m_font;
+	Font* m_font;
 	Matrix m_matrix;
 	MatrixRenderer m_matrix_renderer;
 	PTY m_pty;
@@ -58,17 +62,16 @@ private:
 	}
 
 public:
-	Impl(const std::vector<EventSource *> &event_sources, Display &display)
-	    : m_event_sources(event_sources),
+	Impl(const Configuration &config,
+	     const std::vector<EventSource *> &event_sources, Display &display)
+	    : m_config(config),
+	      m_event_sources(event_sources),
 	      m_display(display),
-	                        m_font("/usr/share/fonts/dejavu/DejaVuSansMono.ttf",
-	                   96),
-	      /*	      m_font("/home/andreas/.local/share/fonts/UbuntuMono-R.ttf",
-	         96),*/
-/*	      m_font("/home/andreas/.local/share/fonts/SourceCodePro-Medium.ttf",
-	             96),*/
+	      //	      m_font(new
+	      //FontTTF("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96)),
+	      m_font(&FontBitmap::Font8x16),
 	      m_matrix(),
-	      m_matrix_renderer(m_font, m_display, m_matrix, 13 * 64),
+	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, 0),
 	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/usr/bin/bash"}),
 	      m_vterm(m_matrix),
 	      m_t_last_draw(microtime()),
@@ -164,9 +167,10 @@ public:
  * Class Inktty                                                               *
  ******************************************************************************/
 
-Inktty::Inktty(const std::vector<EventSource *> &event_sources,
+Inktty::Inktty(const Configuration &config,
+               const std::vector<EventSource *> &event_sources,
                Display &display)
-    : m_impl(new Impl(event_sources, display)) {}
+    : m_impl(new Impl(config, event_sources, display)) {}
 
 Inktty::~Inktty() {
 	// Do nothing here; implicitly destroy m_impl

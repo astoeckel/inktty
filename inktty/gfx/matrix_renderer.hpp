@@ -18,6 +18,7 @@
 
 #include <vector>
 
+#include <inktty/config/configuration.hpp>
 #include <inktty/gfx/display.hpp>
 #include <inktty/gfx/font.hpp>
 #include <inktty/term/matrix.hpp>
@@ -31,13 +32,13 @@ namespace inktty {
 
 class MatrixRenderer {
 private:
+	const Configuration &m_config;
+
 	Font &m_font;
 
 	Display &m_display;
 
 	Matrix &m_matrix;
-
-	Palette m_palette;
 
 	unsigned int m_font_size;
 
@@ -61,7 +62,7 @@ private:
 	               bool erase);
 
 public:
-	MatrixRenderer(Font &font, Display &display, Matrix &matrix,
+	MatrixRenderer(const Configuration &config, Font &font, Display &display, Matrix &matrix,
 	       unsigned int font_size = 12 * 64, unsigned int orientation = 0);
 
 	/**

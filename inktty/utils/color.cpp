@@ -26,8 +26,6 @@ namespace inktty {
 
 const RGBA RGBA::Black = RGBA();
 const RGBA RGBA::White = RGBA(255, 255, 255);
-const RGBA RGBA::SolarizedBlack = RGBA(0x2e3436);
-const RGBA RGBA::SolarizedWhite = RGBA(0xd3d7cf);
 
 /******************************************************************************
  * Struct Palette                                                             *
@@ -40,11 +38,6 @@ static const RGBA DEFAULT_16_COLORS[16] = {
     {0, 111, 184},   {118, 38, 113}, {44, 181, 233}, {204, 204, 204},
     {128, 128, 128}, {255, 0, 0},    {0, 255, 0},    {255, 255, 0},
     {0, 0, 255},     {255, 0, 255},  {0, 255, 255},  {255, 255, 255}};
-
-static const RGBA SOLARIZED_16_COLORS[16] = {
-    0x073642, 0xdc322f, 0x859900, 0xb58900, 0x268bd2, 0xd33682,
-    0x2aa198, 0xeee8d5, 0x002b36, 0xcb4b16, 0x586e75, 0x657b83,
-    0x839496, 0x6c71c4, 0x93a1a1, 0xfdf6e3};
 
 static const RGBA DEFAULT_256_COLORS[256] = {
     0x000000, 0x800000, 0x008000, 0x808000, 0x000080, 0x800080, 0x008080,
@@ -86,7 +79,6 @@ static const RGBA DEFAULT_256_COLORS[256] = {
     0xd0d0d0, 0xdadada, 0xe4e4e4, 0xeeeeee};
 
 const Palette Palette::Default16Colours(16, DEFAULT_16_COLORS);
-const Palette Palette::Solarized16Colours(16, SOLARIZED_16_COLORS);
 const Palette Palette::Default256Colours(256, DEFAULT_256_COLORS);
 
 }  // namespace inktty
