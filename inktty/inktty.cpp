@@ -19,6 +19,7 @@
 #include <iostream>
 #include <memory>
 
+#include <stdlib.h>
 #include <time.h>
 
 #include <inktty/gfx/font.hpp>
@@ -46,7 +47,7 @@ private:
 	const Configuration &m_config;
 	std::vector<EventSource *> m_event_sources;
 	Display &m_display;
-	Font* m_font;
+	Font *m_font;
 	Matrix m_matrix;
 	MatrixRenderer m_matrix_renderer;
 	PTY m_pty;
@@ -59,6 +60,14 @@ private:
 		clock_gettime(CLOCK_MONOTONIC_RAW, &ts);
 		return (int64_t(ts.tv_sec) * 1000 * 1000) +
 		       (int64_t(ts.tv_nsec) / 1000);
+	}
+
+	static const char *get_shell() {
+		char const *shell = getenv("SHELL");
+		if (!shell) {
+			return "/bin/sh";
+		}
+		return shell;
 	}
 
 public:
@@ -74,7 +83,7 @@ public:
 #endif
 	      m_matrix(),
 	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, 0),
-	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/bin/bash"}),
+	      m_pty(m_matrix.size().y, m_matrix.size().x, {get_shell()}),
 	      m_vterm(m_matrix),
 	      m_t_last_draw(microtime()),
 	      m_needs_redraw(false) {
@@ -83,7 +92,7 @@ public:
 
 	~Impl() {
 #ifdef HAS_FREETYPE
-	delete m_font; // XXX
+		delete m_font;  // XXX
 #endif
 	}
 
