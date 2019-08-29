@@ -51,6 +51,13 @@ static Colors parse_colors(std::shared_ptr<cpptoml::table> tbl) {
 	return res;
 }
 
+static General parse_general(std::shared_ptr<cpptoml::table> tbl) {
+	General res;
+	get<std::string>("backend", tbl, res.backend);
+	get<int>("orientation", tbl, res.orientation);
+	return res;
+}
+
 Configuration from_toml(std::istream &is) {
 	// Try to read the configuration
 	auto config = cpptoml::parser(is).parse();
@@ -59,6 +66,9 @@ Configuration from_toml(std::istream &is) {
 	Configuration res;
 	if (config->contains("colors")) {
 		res.colors = parse_colors(config->get_table("colors"));
+	}
+	if (config->contains("general")) {
+		res.general = parse_general(config->get_table("general"));
 	}
 
 	return res;

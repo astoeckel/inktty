@@ -82,7 +82,7 @@ public:
 	      m_font(&FontBitmap::Font8x16),
 #endif
 	      m_matrix(),
-	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, 0),
+	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, config.general.orientation % 4),
 	      m_pty(m_matrix.size().y, m_matrix.size().x, {get_shell()}),
 	      m_vterm(m_matrix),
 	      m_t_last_draw(microtime()),

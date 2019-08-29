@@ -40,6 +40,11 @@ struct General {
 	 * Backend to use, may be one of "sdl" or "fbdev".
 	 */
 	std::string backend;
+
+	/**
+	 * Initial orientation. Should be in the range 0-3.
+	 */
+	int orientation;
 };
 
 /**
