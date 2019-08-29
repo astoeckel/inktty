@@ -39,6 +39,8 @@ lib_utf8proc = library(
 # cpptoml dependencies
 inc_cpptoml = include_directories('./lib/cpptoml/include')
 
+inc_mxcfb = include_directories('./lib')
+
 # Main library
 inc_inktty = include_directories('.')
 lib_inktty = library(
@@ -52,7 +54,7 @@ lib_inktty = library(
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/font_bitmap.cpp',
 		'inktty/gfx/font_cache.cpp',
-#		'inktty/gfx/font_ttf.cpp',
+		'inktty/gfx/font_ttf.cpp',
 		'inktty/gfx/matrix_renderer.cpp',
 		'inktty/term/events.cpp',
 		'inktty/term/matrix.cpp',
@@ -64,7 +66,7 @@ lib_inktty = library(
 		'inktty/inktty.cpp',
 	],
 	include_directories: [inc_inktty, inc_utf8proc, inc_cpptoml],
-	dependencies: [dep_vterm],
+	dependencies: [dep_freetype, dep_vterm],
 	link_with: [lib_utf8proc]
 )
 
@@ -114,7 +116,7 @@ exe_inktty_fbdev = executable(
 		'inktty/backends/kbdstdin.cpp',
 		'inktty/main_fbdev.cpp',
 	],
-	include_directories: inc_inktty,
+	include_directories: [inc_inktty, inc_mxcfb],
 	dependencies: [dep_termkey],
 	link_with: [lib_inktty],
 )

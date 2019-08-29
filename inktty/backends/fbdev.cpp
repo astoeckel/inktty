@@ -49,6 +49,8 @@
 #include <sys/mman.h>
 #include <unistd.h>
 
+#include <mxcfb.h>
+
 #include <inktty/backends/fbdev.hpp>
 
 namespace inktty {
@@ -110,6 +112,54 @@ FbDevDisplay::~FbDevDisplay() {
 
 Rect FbDevDisplay::do_lock() { return Rect(0, 0, m_width, m_height); }
 
+static void kobo_eink_update_partial(int fb_fd, int mono, int left, int top, int width,
+                              int height)
+{
+	struct mxcfb_update_data region;
+	static int prev_marker = 0;
+	static int marker = 1;
+	static int mono_no = 0;
+
+	marker++;
+	if (marker > 1024) {
+		marker = 1;
+	}
+	if (prev_marker) {
+		ioctl(fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, prev_marker);
+	}
+
+	region.update_marker = marker; /* Marker used when waiting for completion */
+	region.update_region.top = top;
+	region.update_region.left = left;
+	region.update_region.width = width;
+	region.update_region.height = height;
+	// 1 is quite good and fast in bw
+	// 2 doesn't work
+	// 3 doesn't work
+	// 4 works
+
+	/* maybe switch to waveform 4 after having ensured stable bw?.. */
+
+	region.update_mode = UPDATE_MODE_PARTIAL;
+	// region.update_mode = UPDATE_MODE_FULL;
+	region.temp = TEMP_USE_AMBIENT;
+	if (mono) {
+		if (mono_no == 0)
+			region.waveform_mode = WAVEFORM_MODE_AUTO;
+		else
+			region.waveform_mode = 4;
+		region.flags = EPDC_FLAG_FORCE_MONOCHROME;
+		mono_no++;
+	}
+	else {
+		region.waveform_mode = WAVEFORM_MODE_AUTO;
+		region.flags = 0;
+		mono_no = 0;
+	}
+	ioctl(fb_fd, MXCFB_SEND_UPDATE, &region);
+	prev_marker = marker;
+}
+
 void FbDevDisplay::do_unlock(const CommitRequest *begin, const CommitRequest *end,
                           const RGBA *buf, size_t stride) {
 	const int bypp = m_layout.bypp();
@@ -126,6 +176,8 @@ void FbDevDisplay::do_unlock(const CommitRequest *begin, const CommitRequest *en
 				}
 			}
 		}
+
+		kobo_eink_update_partial(m_fb_fd, 1, r.x0, r.y0, r.width(), r.height());
 	}
 }
 

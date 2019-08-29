@@ -1,0 +1,19 @@
+[binaries]
+c = '/usr/bin/arm-linux-gnueabi-gcc'
+cpp = '/usr/bin/arm-linux-gnueabi-g++'
+ar = '/usr/bin/arm-linux-gnueabi-ar'
+strip = '/usr/bin/arm-linux-gnueabi-strip'
+exe_wrapper = 'qemu-arm'
+
+[properties]
+default_library = 'static'
+c_link_args = ['-static']
+cpp_link_args = ['-static']
+needs_exe_wrapper = true
+
+[host_machine]
+system = 'linux'
+cpu_family = 'arm'
+cpu = 'arm6'
+endian = 'little'
+

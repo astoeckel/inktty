@@ -23,7 +23,7 @@
 
 #include <inktty/gfx/font.hpp>
 #include <inktty/gfx/font_bitmap.hpp>
-//#include <inktty/gfx/font_ttf.hpp>
+#include <inktty/gfx/font_ttf.hpp>
 #include <inktty/gfx/matrix_renderer.hpp>
 #include <inktty/inktty.hpp>
 #include <inktty/term/matrix.hpp>
@@ -67,12 +67,11 @@ public:
 	    : m_config(config),
 	      m_event_sources(event_sources),
 	      m_display(display),
-	      //	      m_font(new
-	      //FontTTF("/usr/share/fonts/dejavu/DejaVuSansMono.ttf", 96)),
-	      m_font(&FontBitmap::Font8x16),
+	      m_font(new FontTTF("DejaVuSansMono.ttf", 96)),
+//	      m_font(&FontBitmap::Font8x16),
 	      m_matrix(),
 	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, 0),
-	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/usr/bin/bash"}),
+	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/bin/bash"}),
 	      m_vterm(m_matrix),
 	      m_t_last_draw(microtime()),
 	      m_needs_redraw(false) {
