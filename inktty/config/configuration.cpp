@@ -94,6 +94,13 @@ Configuration::Configuration(int argc, const char *argv[]) {
 		    return true;
 	    },
 	    Argparse::Required::NOT_REQUIRED);
+	argparse.add_arg(
+		"backend", "Backend to use.", "default",
+	    [this](const char *value) -> bool {
+	    	this->general.backend = value;
+		    return true;
+	    },
+	    Argparse::Required::NOT_REQUIRED);
 	argparse.parse(argc, argv);
 }
 

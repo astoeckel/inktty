@@ -16,6 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#ifdef HAS_SDL
+
 #include <atomic>
 #include <condition_variable>
 #include <mutex>
@@ -69,6 +72,8 @@ private:
 	int m_ctrl;
 	int m_alt;
 
+	const char *m_init_err;
+
 	/**
 	 * This function runs on a separate thread and is the only function inside
 	 * the SDLBackend::Impl class that directly interacts with SDL.
@@ -79,6 +84,7 @@ private:
 		SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
+		SDL_setenv("SDL_VIDEODRIVER", "x11", true); // Prevent SDL from using the fbcon
 		SDL_Init(SDL_INIT_VIDEO);
 
 
@@ -86,8 +92,13 @@ private:
 		self->m_wnd = SDL_CreateWindow("inktty", SDL_WINDOWPOS_UNDEFINED,
 		                               SDL_WINDOWPOS_UNDEFINED, self->m_width,
 		                               self->m_height, SDL_WINDOW_RESIZABLE);
+
+		// Propagate initialisation errors to the main thread
 		if (!self->m_wnd) {
-			throw std::runtime_error(SDL_GetError());
+			self->m_initialised = true;
+			self->m_init_err = SDL_GetError();
+			self->m_gui_cond_var.notify_one();
+			return;
 		}
 
 		// Register the lock and unlock event
@@ -339,10 +350,18 @@ public:
 	      m_gui_thread(sdl_main_thread, this),
 	      m_shift(0),
 	      m_ctrl(0),
-	      m_alt(0) {
+	      m_alt(0),
+	      m_init_err(nullptr) {
 		// Wait for the GUI thread to initialise
 		std::unique_lock<std::mutex> lock(m_gui_mutex);
 		m_gui_cond_var.wait(lock, [this] { return !!m_initialised; });
+
+		// Propagate initialisation errors as an exception
+		if (m_init_err) {
+			m_gui_thread.join();
+			close(m_event_fd);
+			throw std::runtime_error(m_init_err);
+		}
 	}
 
 	~Impl() {
@@ -467,3 +486,5 @@ bool SDLBackend::event_get(EventSource::PollMode mode, Event &event) {
 }
 
 }  // namespace inktty
+
+#endif /* HAS_SDL */

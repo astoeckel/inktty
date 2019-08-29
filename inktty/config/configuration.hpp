@@ -24,10 +24,23 @@
 #ifndef INKTTY_CONFIG_CONFIGURATION_HPP
 #define INKTTY_CONFIG_CONFIGURATION_HPP
 
+#include <string>
+
 #include <inktty/utils/color.hpp>
 
 namespace inktty {
 namespace config {
+
+/**
+ * General configuration options, such as the name of the backend that should be
+ * used.
+ */
+struct General {
+	/**
+	 * Backend to use, may be one of "sdl" or "fbdev".
+	 */
+	std::string backend;
+};
 
 /**
  * Contains configuration options regarding the colors used in the terminal.
@@ -73,6 +86,11 @@ struct Colors {
  * parse the given command line arguments.
  */
 struct Configuration {
+	/**
+	 * General configuration options.
+	 */
+	config::General general;
+
 	/**
 	 * Object containing all color configuration options.
 	 */

@@ -16,6 +16,9 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include <config.h>
+#ifdef HAS_FREETYPE
+
 #include <algorithm>
 #include <list>
 #include <stdexcept>
@@ -379,3 +382,5 @@ MonospaceFontMetrics FontTTF::metrics(int size) const {
 }
 
 }  // namespace inktty
+
+#endif /* HAS_FREETYPE*/

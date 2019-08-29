@@ -31,6 +31,9 @@
 #ifndef INKTTY_GFX_FONT_TTF_HPP
 #define INKTTY_GFX_FONT_TTF_HPP
 
+#include <config.h>
+#ifdef HAS_FREETYPE
+
 #include <memory>
 
 #include <inktty/gfx/font.hpp>
@@ -84,4 +87,5 @@ public:
 
 }  // namespace inktty
 
+#endif /* HAS_FREETYPE */
 #endif /* INKTTY_GFX_FONT_TTF_HPP */

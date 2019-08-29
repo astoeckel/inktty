@@ -19,6 +19,10 @@
 #ifndef INKTTY_BACKENDS_SDL_HPP
 #define INKTTY_BACKENDS_SDL_HPP
 
+#include <config.h>
+
+#ifdef HAS_SDL
+
 #include <memory>
 
 #include <inktty/gfx/display.hpp>
@@ -62,4 +66,5 @@ public:
 };
 }  // namespace inktty
 
+#endif /* HAS_SDL */
 #endif /* INKTTY_BACKENDS_SDL_HPP */

@@ -15,10 +15,17 @@
 #  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 project('inktty', ['cpp', 'c'],
-    default_options : ['c_std=c99', 'cpp_std=c++11', 'b_ndebug=if-release'])
+    default_options : [
+        'c_std=c99',
+        'cpp_std=c++11',
+        'b_ndebug=if-release',
+        'buildtype=release',
+        'default_library=static'])
 
 # Dependencies
-dep_freetype = dependency('freetype2', required: true)
+dep_freetype = dependency('freetype2', required: false)
+dep_sdl = dependency('sdl2', required: false)
+dep_threads = dependency('threads')
 dep_vterm = dependency('vterm',
 	fallback:['vterm', 'dep_vterm'],
 	required: true)
@@ -38,14 +45,23 @@ lib_utf8proc = library(
 
 # cpptoml dependencies
 inc_cpptoml = include_directories('./lib/cpptoml/include')
-
 inc_mxcfb = include_directories('./lib')
+
+conf_data = configuration_data()
+conf_data.set('HAS_FREETYPE', dep_freetype.found())
+conf_data.set('HAS_SDL', dep_sdl.found())
+configure_file(input : 'config.h.in',
+               output : 'config.h',
+               configuration : conf_data)
 
 # Main library
 inc_inktty = include_directories('.')
 lib_inktty = library(
 	'inktty',
 	[
+		'inktty/backends/fbdev.cpp',
+		'inktty/backends/kbdstdin.cpp',
+		'inktty/backends/sdl.cpp',
 		'inktty/config/argparse.cpp',
 		'inktty/config/configuration.cpp',
 		'inktty/config/toml.cpp',
@@ -65,8 +81,8 @@ lib_inktty = library(
 		'inktty/utils/utf8.cpp',
 		'inktty/inktty.cpp',
 	],
-	include_directories: [inc_inktty, inc_utf8proc, inc_cpptoml],
-	dependencies: [dep_freetype, dep_vterm],
+	include_directories: [inc_inktty, inc_utf8proc, inc_cpptoml, inc_mxcfb],
+	dependencies: [dep_freetype, dep_vterm, dep_termkey, dep_sdl, dep_threads],
 	link_with: [lib_utf8proc]
 )
 
@@ -91,33 +107,13 @@ exe_test_term_matrix = executable(
 test('test_utils_utf8', exe_test_utils_utf8)
 test('test_term_matrix', exe_test_term_matrix)
 
-# SDL
-dep_threads = dependency('threads')
-dep_sdl = dependency('sdl2', required: false)
-if dep_sdl.found()
-	exe_inktty_sdl = executable(
-		'inktty_sdl',
-		[
-			'inktty/backends/sdl.cpp',
-			'inktty/backends/kbdstdin.cpp',
-			'inktty/main_sdl.cpp',
-		],
-		include_directories: inc_inktty,
-		link_with: [lib_inktty],
-		dependencies: [dep_sdl, dep_threads, dep_termkey]
-	)
-endif
-
 # Framebuffer
-exe_inktty_fbdev = executable(
-	'inktty_fbdev',
+exe_inktty = executable(
+	'inktty',
 	[
-		'inktty/backends/fbdev.cpp',
-		'inktty/backends/kbdstdin.cpp',
-		'inktty/main_fbdev.cpp',
+		'inktty/main.cpp',
 	],
-	include_directories: [inc_inktty, inc_mxcfb],
-	dependencies: [dep_termkey],
+	include_directories: [inc_inktty],
 	link_with: [lib_inktty],
 )
 

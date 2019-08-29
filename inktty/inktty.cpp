@@ -67,8 +67,11 @@ public:
 	    : m_config(config),
 	      m_event_sources(event_sources),
 	      m_display(display),
+#ifdef HAS_FREETYPE
 	      m_font(new FontTTF("DejaVuSansMono.ttf", 96)),
-//	      m_font(&FontBitmap::Font8x16),
+#else
+	      m_font(&FontBitmap::Font8x16),
+#endif
 	      m_matrix(),
 	      m_matrix_renderer(m_config, *m_font, m_display, m_matrix, 13 * 64, 0),
 	      m_pty(m_matrix.size().y, m_matrix.size().x, {"/bin/bash"}),
@@ -78,7 +81,11 @@ public:
 		m_event_sources.push_back(&m_pty);
 	}
 
-	~Impl() {}
+	~Impl() {
+#ifdef HAS_FREETYPE
+	delete m_font; // XXX
+#endif
+	}
 
 	bool handle_event(const Event &event) {
 		switch (event.type) {

@@ -16,19 +16,10 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <iostream>
+#ifndef INKTTY_CONFIG_H
+#define INKTTY_CONFIG_H
 
-#include <inktty/backends/fbdev.hpp>
-#include <inktty/backends/kbdstdin.hpp>
-#include <inktty/config/configuration.hpp>
-#include <inktty/inktty.hpp>
+#mesondefine HAS_SDL
+#mesondefine HAS_FREETYPE
 
-using namespace inktty;
-
-int main(int argc, const char *argv[]) {
-	Configuration config(argc, argv);
-	FbDevDisplay display("/dev/fb0");
-	KbdStdin keyboard;
-	Inktty(config, {&keyboard}, display).run();
-	return 0;
-}
+#endif  /* INKTTY_CONFIG_H */
