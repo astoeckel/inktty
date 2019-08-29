@@ -4,6 +4,7 @@ cpp = '/usr/bin/arm-linux-gnueabihf-g++'
 ar = '/usr/bin/arm-linux-gnueabihf-ar'
 strip = '/usr/bin/arm-linux-gnueabihf-strip'
 exe_wrapper = 'qemu-arm'
+pkgconfig = 'pkg-config'
 
 [properties]
 default_library = 'static'
