@@ -62,6 +62,7 @@ int main(int argc, const char *argv[]) {
 	std::unique_ptr<Display> display = get_display(config.general.backend, event_sources);
 	if (!display) {
 		std::cerr << "FATAL: Couldn't allocate a display." << std::endl;
+		return 1;
 	}
 
 	// If there is no event source yet, append the terminal keyboard
