@@ -78,6 +78,27 @@ struct mxcfb_rect {
 #define UPDATE_MODE_PARTIAL			0x0
 #define UPDATE_MODE_FULL			0x1
 
+/* Supported waveform modes */
+#define WAVEFORM_MODE_INIT			0x0	/* Screen goes to white (clears) */
+#define WAVEFORM_MODE_DU			0x1	/* Grey->white/grey->black */
+#define WAVEFORM_MODE_GC16			0x2	/* High fidelity (flashing) */
+#define WAVEFORM_MODE_GC4			WAVEFORM_MODE_GC16 /* For compatibility */
+#define WAVEFORM_MODE_GC16_FAST			0x3	/* Medium fidelity */
+#define WAVEFORM_MODE_A2			0x4	/* Faster but even lower fidelity */
+#define WAVEFORM_MODE_GL16			0x5	/* High fidelity from white transition */
+#define WAVEFORM_MODE_GL16_FAST			0x6	/* Medium fidelity from white transition */
+
+/* FW >= 5.3 */
+#define WAVEFORM_MODE_DU4			0x7	/* Medium fidelity 4 level of gray direct update */
+
+/* PW2/KT2/KV */
+#define WAVEFORM_MODE_REAGL			0x8	/* Ghost compensation waveform */
+#define WAVEFORM_MODE_REAGLD			0x9	/* Ghost compensation waveform with dithering */
+
+/* KT2/KV */
+#define WAVEFORM_MODE_GL4			0xA	/* 2-bit from white transition */
+#define WAVEFORM_MODE_GL16_INV			0xB	/* High fidelity for black transition */
+
 #define WAVEFORM_MODE_AUTO			257
 
 #define TEMP_USE_AMBIENT			0x1000
@@ -103,7 +124,7 @@ struct mxcfb_update_data {
 	__u32 update_mode;
 	__u32 update_marker;
 	int temp;
-	unsigned int flags;
+	int flags;
 	struct mxcfb_alt_buffer_data alt_buffer_data;
 };
 
@@ -149,21 +170,4 @@ struct mxcfb_waveform_modes {
 #define MXCFB_SET_TEMP_AUTO_UPDATE_PERIOD     _IOR('F', 0x36, int32_t)
 #define MXCFB_SET_MERGE_ON_WAVEFORM_MISMATCH	_IOW('F', 0x37, int32_t)
 
-#ifdef __KERNEL__
-
-extern struct fb_videomode mxcfb_modedb[];
-extern int mxcfb_modedb_sz;
-
-enum {
-	MXCFB_REFRESH_OFF,
-	MXCFB_REFRESH_AUTO,
-	MXCFB_REFRESH_PARTIAL,
-};
-
-int mxcfb_set_refresh_mode(struct fb_info *fbi, int mode,
-			   struct mxcfb_rect *update_region);
-
-int mxc_elcdif_frame_addr_setup(dma_addr_t phys);
-#endif				/* __KERNEL__ */
 #endif
-
