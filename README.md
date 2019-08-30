@@ -51,7 +51,7 @@ cd ninja
 cd ..
 ```
 
-### Freetype
+#### Freetype
 
 Install and compile `freetype` by running
 ```sh
