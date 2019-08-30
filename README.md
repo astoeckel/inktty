@@ -48,7 +48,6 @@ wget https://github.com/ninja-build/ninja/archive/v1.9.0.tar.gz
 tar -xf v1.9.0.tar.gz
 cd ninja
 ./configure.py --bootstrap
-cd ..
 ```
 
 #### Freetype
