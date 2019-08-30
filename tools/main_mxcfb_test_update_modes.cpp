@@ -247,14 +247,14 @@ int main() {
 				std::fill(buf, buf + buf_size, 255);
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_INIT, UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 
 				// Draw the first test image
 				img_test_pg1.blit_to(layout, buf + buf_offs, stride, w, h);
 				draw_text(test_str, 375, 12, buf + buf_offs, stride, w, h);
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GL16, UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 
 				// Draw the second test image
 				img_test_pg2.blit_to(layout, buf + buf_offs, stride, w, h);
@@ -263,7 +263,7 @@ int main() {
 					std::cerr << "Test " << test_str << " failed." << std::endl;
 				}
 
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				std::this_thread::sleep_for(std::chrono::seconds(3));
 			}
 		}
 	}
