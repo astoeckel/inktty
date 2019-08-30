@@ -30,6 +30,9 @@
 
 namespace inktty {
 
+/**
+ * The MatrixRenderer class is used to render a terminal grid onto a display.
+ */
 class MatrixRenderer {
 private:
 	const Configuration &m_config;

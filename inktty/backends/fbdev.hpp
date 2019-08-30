@@ -60,6 +60,11 @@ private:
 		uint8_t bypp() const { return (bpp + 7U) >> 3U; }
 	};
 
+	enum class Type {
+		EPaper_MXC,
+		Generic
+	};
+
 	/**
 	 * File descriptor pointing at the opened framebuffer device.
 	 */
@@ -99,6 +104,20 @@ private:
 	 * Height of the framebuffer in pixels.
 	 */
 	unsigned int m_height;
+
+	/**
+	 * Flag indicating the type of this screen.
+	 */
+	Type m_type;
+
+	int m_epaper_mxc_marker;
+
+	int m_epaper_mxc_prev_marker;
+
+	/**
+	 * Used internally to commit a change to the epaper display.
+	 */
+	void epaper_mxc_update(int x, int y, int w, int h, int flags);
 
 protected:
 	/* Implementation of the abstract class MemoryDisplay */
