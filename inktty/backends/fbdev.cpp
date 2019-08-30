@@ -41,6 +41,8 @@
  */
 
 #include <cerrno>
+#include <cstring>
+#include <string>
 #include <system_error>
 
 #include <fcntl.h>
@@ -52,6 +54,7 @@
 #include <mxcfb.h>
 
 #include <inktty/backends/fbdev.hpp>
+#include <inktty/utils/logger.hpp>
 
 namespace inktty {
 
@@ -80,6 +83,9 @@ FbDevDisplay::FbDevDisplay(const char *fbdev) {
 		throw std::system_error(errno, std::system_category());
 	}
 
+	/* Read the screen id */
+	const std::string id(finfo.id, strnlen(finfo.id, sizeof(finfo.id)));
+
 	/* Read the screen size */
 	m_width = vinfo.xres;
 	m_height = vinfo.yres;
@@ -92,6 +98,11 @@ FbDevDisplay::FbDevDisplay(const char *fbdev) {
 	m_layout.rl = vinfo.red.offset;
 	m_layout.gl = vinfo.green.offset;
 	m_layout.bl = vinfo.blue.offset;
+
+	/* Print some information */
+	global_logger().info() << "Opened \"" << fbdev << "\": \"" << id << "\" ("
+	                       << m_width << 'x' << m_height << '@'
+	                       << int(m_layout.bpp) << ")";
 
 	/* Memory map the frame buffer device to memory */
 	m_buf_size = finfo.line_length * vinfo.yres_virtual;
@@ -112,9 +123,8 @@ FbDevDisplay::~FbDevDisplay() {
 
 Rect FbDevDisplay::do_lock() { return Rect(0, 0, m_width, m_height); }
 
-static void kobo_eink_update_partial(int fb_fd, int mono, int left, int top, int width,
-                              int height)
-{
+static void kobo_eink_update_partial(int fb_fd, int mono, int left, int top,
+                                     int width, int height) {
 	struct mxcfb_update_data region;
 	static int prev_marker = 0;
 	static int marker = 1;
@@ -150,8 +160,7 @@ static void kobo_eink_update_partial(int fb_fd, int mono, int left, int top, int
 			region.waveform_mode = 4;
 		region.flags = EPDC_FLAG_FORCE_MONOCHROME;
 		mono_no++;
-	}
-	else {
+	} else {
 		region.waveform_mode = WAVEFORM_MODE_AUTO;
 		region.flags = 0;
 		mono_no = 0;
@@ -160,8 +169,9 @@ static void kobo_eink_update_partial(int fb_fd, int mono, int left, int top, int
 	prev_marker = marker;
 }
 
-void FbDevDisplay::do_unlock(const CommitRequest *begin, const CommitRequest *end,
-                          const RGBA *buf, size_t stride) {
+void FbDevDisplay::do_unlock(const CommitRequest *begin,
+                             const CommitRequest *end, const RGBA *buf,
+                             size_t stride) {
 	const int bypp = m_layout.bypp();
 	for (CommitRequest const *req = begin; req < end; req++) {
 		const Rect r = req->r;
