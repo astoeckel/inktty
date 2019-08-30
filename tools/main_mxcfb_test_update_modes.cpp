@@ -169,9 +169,6 @@ static bool mxc_update(int fb_fd, int x, int y, int w, int h, int waveform_mode,
 }
 
 int main() {
-	printf("%lX\n", MXCFB_WAIT_FOR_UPDATE_COMPLETE);
-	return 1;
-
 	/* Try to open the framebuffer device */
 	int fb_fd = open(fbdev, O_RDWR);
 	if (fb_fd < 0) {
