@@ -52,12 +52,12 @@ KbdStdin::KbdStdin(int, int fd_stdout) : m_data(new KbdStdin::Data()) {
 	m_data->fd_stdout = fd_stdout;
 
 	// Go to alternative buffer, clear screen and hide cursor
-	dprintf(m_data->fd_stdout, "\e[?1049h\e[2J\e[?25l");
+//	dprintf(m_data->fd_stdout, "\e[?1049h\e[2J\e[?25l");
 }
 
 KbdStdin::~KbdStdin() {
 	// Show cursor and go to original buffer
-	dprintf(m_data->fd_stdout, "\e[?25h\e[?1049l");
+//	dprintf(m_data->fd_stdout, "\e[?25h\e[?1049l");
 
 	// Destroy the termkey instance
 	if (m_data->tk) {

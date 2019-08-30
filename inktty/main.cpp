@@ -25,10 +25,12 @@
 #include <inktty/backends/sdl.hpp>
 #include <inktty/config/configuration.hpp>
 #include <inktty/inktty.hpp>
+#include <inktty/utils/logger.hpp>
 
 using namespace inktty;
 
-static std::unique_ptr<Display> get_display(const std::string &name, std::vector<EventSource *> &event_sources) {
+static std::unique_ptr<Display> get_display(
+    const std::string &name, std::vector<EventSource *> &event_sources) {
 	std::unique_ptr<Display> display;
 #ifdef HAS_SDL
 	if ((name == "sdl" || name == "default") && !display) {
@@ -37,8 +39,7 @@ static std::unique_ptr<Display> get_display(const std::string &name, std::vector
 			display = std::unique_ptr<Display>(sdl_backend);
 			event_sources.push_back(sdl_backend);
 		} catch (std::runtime_error &e) {
-			std::cerr << "WARNING: Coudln't open SDL backend: " << e.what()
-			          << std::endl;
+			global_logger().warn() << "Couldn't open SDL backend: " << e.what();
 		}
 	}
 #endif
@@ -46,8 +47,8 @@ static std::unique_ptr<Display> get_display(const std::string &name, std::vector
 		try {
 			display = std::unique_ptr<Display>(new FbDevDisplay("/dev/fb0"));
 		} catch (std::runtime_error &e) {
-			std::cerr << "WARNING: Coudln't open framebuffer backend: "
-			          << e.what() << std::endl;
+			global_logger().warn()
+			    << "Couldn't open framebuffer backend: " << e.what();
 		}
 	}
 	return display;
@@ -58,10 +59,11 @@ int main(int argc, const char *argv[]) {
 	Configuration config(argc, argv);
 
 	// Try to allocate a display
-	std::vector<EventSource*> event_sources;
-	std::unique_ptr<Display> display = get_display(config.general.backend, event_sources);
+	std::vector<EventSource *> event_sources;
+	std::unique_ptr<Display> display =
+	    get_display(config.general.backend, event_sources);
 	if (!display) {
-		std::cerr << "FATAL: Couldn't allocate a display." << std::endl;
+		global_logger().fatal_error() << "Couldn't allocate a display.";
 		return 1;
 	}
 

@@ -26,6 +26,7 @@
 #include <inktty/config/argparse.hpp>
 #include <inktty/config/configuration.hpp>
 #include <inktty/config/toml.hpp>
+#include <inktty/utils/logger.hpp>
 
 namespace inktty {
 namespace config {
@@ -59,6 +60,12 @@ public:
 }  // namespace
 
 /******************************************************************************
+ * Class General                                                              *
+ ******************************************************************************/
+
+General::General() : orientation(0) {}
+
+/******************************************************************************
  * Class Colors                                                               *
  ******************************************************************************/
 
@@ -79,7 +86,7 @@ Colors::Colors()
  * Class Configuration                                                        *
  ******************************************************************************/
 
-	using namespace config;
+using namespace config;
 
 Configuration::Configuration() {}
 
@@ -95,9 +102,9 @@ Configuration::Configuration(int argc, const char *argv[]) {
 	    },
 	    Argparse::Required::NOT_REQUIRED);
 	argparse.add_arg(
-		"backend", "Backend to use.", "default",
+	    "backend", "Backend to use.", "default",
 	    [this](const char *value) -> bool {
-	    	this->general.backend = value;
+		    this->general.backend = value;
 		    return true;
 	    },
 	    Argparse::Required::NOT_REQUIRED);
@@ -108,8 +115,8 @@ Configuration::Configuration(const char *filename) {
 	WordExp filename_exp(filename);
 	std::ifstream is(filename);
 	if (!is) {
-		std::cerr << "Warning: Configuration file " << filename << " not found."
-		          << std::endl;
+		global_logger().warn()
+		    << "Configuration file \"" << filename << "\" not found.";
 	} else {
 		*this = from_toml(is);
 	}

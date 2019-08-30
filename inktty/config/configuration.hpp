@@ -45,6 +45,11 @@ struct General {
 	 * Initial orientation. Should be in the range 0-3.
 	 */
 	int orientation;
+
+	/**
+	 * Default constructor, sets all values to defaults.
+	 */
+	General();
 };
 
 /**
