@@ -57,7 +57,6 @@ void MatrixRenderer::update_geometry() {
 	const MonospaceFontMetrics m = m_font.metrics(m_font_size);
 	m_cell_w = m.cell_width;
 	m_cell_h = m.cell_height;
-	std::cout << "Font metrics: " << m_cell_w << ", " << m_cell_h << std::endl;
 
 	/* Fetch the bounding box */
 	const int b_x0 = m_bounds.x0, b_y0 = m_bounds.y0;
