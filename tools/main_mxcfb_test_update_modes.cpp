@@ -20,11 +20,12 @@
 #include <chrono>
 #include <cstddef>
 #include <cstdint>
+#include <cstdio>
+#include <iostream>
 #include <stdexcept>
 #include <system_error>
 #include <thread>
 #include <vector>
-#include <iostream>
 
 #include <fcntl.h>
 #include <linux/fb.h>
@@ -164,10 +165,13 @@ static bool mxc_update(int fb_fd, int x, int y, int w, int h, int waveform_mode,
 	data.flags = flags;
 
 	return (ioctl(fb_fd, MXCFB_SEND_UPDATE, &data) >= 0) &&
-	       (ioctl(fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, MARKER) >= 0);
+	       (ioctl(fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &MARKER) >= 0);
 }
 
 int main() {
+	printf("%lX\n", MXCFB_WAIT_FOR_UPDATE_COMPLETE);
+	return 1;
+
 	/* Try to open the framebuffer device */
 	int fb_fd = open(fbdev, O_RDWR);
 	if (fb_fd < 0) {
@@ -224,9 +228,8 @@ int main() {
 	    WAVEFORM_MODE_GL16_FAST, WAVEFORM_MODE_DU4, WAVEFORM_MODE_REAGL,
 	    WAVEFORM_MODE_REAGLD,    WAVEFORM_MODE_GL4, WAVEFORM_MODE_GL16_INV,
 	    WAVEFORM_MODE_AUTO};
-	std::vector<std::string> waveform_modes_str{
-	    "INIT", "DU",    "GC16",   "GC16F", "A2",       "GL16", "GL16F",
-	    "DU4",  "REGAL", "REGALD", "GL4",   "GL16_INV", "AUTO"};
+	std::vector<std::string> waveform_modes_str{"INIT",  "DU", "GC16",
+	                                            "GC16F", "A2", "GL16"};
 
 	/* Update modes to test */
 	std::vector<int> update_modes{UPDATE_MODE_PARTIAL, UPDATE_MODE_FULL};
@@ -241,25 +244,29 @@ int main() {
 	for (size_t i = 0; i < waveform_modes.size(); i++) {
 		for (size_t j = 0; j < update_modes.size(); j++) {
 			for (size_t k = 0; k < flags.size(); k++) {
-				std::string test_str = waveform_modes_str[i] + "_" + update_modes_str[j] + "_" + flags_str[k];
+				std::string test_str = waveform_modes_str[i] + "_" +
+				                       update_modes_str[j] + "_" + flags_str[k];
 
 				// Reset the screen
 				std::fill(buf, buf + buf_size, 255);
-				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_INIT, UPDATE_MODE_FULL, 0);
+				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_INIT,
+				           UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				std::this_thread::sleep_for(std::chrono::seconds(3));
 
 				// Draw the first test image
 				img_test_pg1.blit_to(layout, buf + buf_offs, stride, w, h);
 				draw_text(test_str, 375, 12, buf + buf_offs, stride, w, h);
-				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GL16, UPDATE_MODE_FULL, 0);
+				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GC16,
+				           UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(2));
+				std::this_thread::sleep_for(std::chrono::seconds(3));
 
 				// Draw the second test image
 				img_test_pg2.blit_to(layout, buf + buf_offs, stride, w, h);
 				draw_text(test_str, 375, 12, buf + buf_offs, stride, w, h);
-				if (!mxc_update(fb_fd, 0, 0, w, h, waveform_modes[i], update_modes[j], flags[k])) {
+				if (!mxc_update(fb_fd, 0, 0, w, h, waveform_modes[i],
+				                update_modes[j], flags[k])) {
 					std::cerr << "Test " << test_str << " failed." << std::endl;
 				}
 
