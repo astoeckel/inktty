@@ -63,14 +63,14 @@ struct ColorLayout {
 	 * Left/right shift per component to convert from 8 bit to the given
 	 * colour.
 	 */
-	uint8_t rr, rl, gr, gl, br, bl;
+	uint8_t rr, rl, gr, gl, br, bl, ar, al;
 
 	/**
 	 * Converts the given colour to the specified colour space.
 	 */
 	uint32_t conv(const RGBA &c) const {
 		return ((uint32_t(c.r) >> rr) << rl) | ((uint32_t(c.g) >> gr) << gl) |
-		       ((uint32_t(c.b) >> br) << bl);
+		       ((uint32_t(c.b) >> br) << bl) | ((uint32_t(c.a) >> ar) << al);
 	}
 
 	/**
@@ -159,6 +159,7 @@ static bool mxc_update(int fb_fd, int x, int y, int w, int h, int waveform_mode,
 	data.update_region.width = w;
 	data.update_region.height = h;
 	data.update_marker = MARKER;
+	data.temp = TEMP_USE_AMBIENT;
 
 	data.waveform_mode = waveform_mode;
 	data.update_mode = update_mode;
@@ -199,9 +200,11 @@ int main() {
 	layout.rr = 8U - vinfo.red.length;
 	layout.gr = 8U - vinfo.green.length;
 	layout.br = 8U - vinfo.blue.length;
+	layout.ar = 8U - vinfo.transp.length;
 	layout.rl = vinfo.red.offset;
 	layout.gl = vinfo.green.offset;
 	layout.bl = vinfo.blue.offset;
+	layout.al = vinfo.transp.offset;
 
 #define DBG_PRINT(X) \
 	std::cerr << #X ": " << (int)X << std::endl
@@ -227,7 +230,8 @@ int main() {
 	const size_t buf_offs =
 	    vinfo.xoffset * layout.bypp() + vinfo.yoffset * stride;
 
-	/* Try to load the two test images */
+	/* Try to load the test images */
+	Image img_test_calib("data/mxcfb_camera_calibration.png");
 	Image img_test_pg1("data/mxcfb_update_modes_pg1.png");
 	Image img_test_pg2("data/mxcfb_update_modes_pg2.png");
 
@@ -255,6 +259,14 @@ int main() {
 				std::string test_str = waveform_modes_str[i] + "_" +
 				                       update_modes_str[j] + "_" + flags_str[k];
 
+				// Draw the camera calibration pattern
+				img_test_calib.blit_to(layout, buf + buf_offs, stride, w, h);
+				draw_text(test_str, 375, 12, buf + buf_offs, stride, w, h);
+				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GC16,
+				           UPDATE_MODE_FULL, 0);
+
+				std::this_thread::sleep_for(std::chrono::seconds(2));
+
 				// Reset the screen
 				std::fill(buf, buf + buf_size, 255);
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_INIT,
@@ -266,7 +278,7 @@ int main() {
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GC16,
 				           UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(1));
+				std::this_thread::sleep_for(std::chrono::milliseconds(250));
 
 				// Draw the second test image
 				img_test_pg2.blit_to(layout, buf + buf_offs, stride, w, h);
@@ -276,7 +288,7 @@ int main() {
 					std::cerr << "Test " << test_str << " failed." << std::endl;
 				}
 
-				std::this_thread::sleep_for(std::chrono::seconds(3));
+				std::this_thread::sleep_for(std::chrono::seconds(2));
 			}
 		}
 	}
