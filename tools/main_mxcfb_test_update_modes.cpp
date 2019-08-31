@@ -203,6 +203,19 @@ int main() {
 	layout.gl = vinfo.green.offset;
 	layout.bl = vinfo.blue.offset;
 
+#define DBG_PRINT(X) \
+	std::cerr << #X ": " << (int)X << std::endl
+	DBG_PRINT(vinfo.bits_per_pixel);
+	DBG_PRINT(vinfo.grayscale);
+	DBG_PRINT(vinfo.red.length);
+	DBG_PRINT(vinfo.red.offset);
+	DBG_PRINT(vinfo.green.length);
+	DBG_PRINT(vinfo.green.offset);
+	DBG_PRINT(vinfo.blue.length);
+	DBG_PRINT(vinfo.blue.offset);
+	DBG_PRINT(vinfo.transp.length);
+	DBG_PRINT(vinfo.transp.offset);
+
 	/* Memory map the frame buffer device to memory */
 	const size_t buf_size = finfo.line_length * vinfo.yres_virtual;
 	uint8_t *buf = (uint8_t *)mmap(NULL, buf_size, PROT_READ | PROT_WRITE,
@@ -219,14 +232,12 @@ int main() {
 	Image img_test_pg2("data/mxcfb_update_modes_pg2.png");
 
 	/* Waveforms to test */
-	std::vector<int> waveform_modes{
-	    WAVEFORM_MODE_INIT,      WAVEFORM_MODE_DU,  WAVEFORM_MODE_GC16,
-	    WAVEFORM_MODE_GC16_FAST, WAVEFORM_MODE_A2,  WAVEFORM_MODE_GL16,
-	    WAVEFORM_MODE_GL16_FAST, WAVEFORM_MODE_DU4, WAVEFORM_MODE_REAGL,
-	    WAVEFORM_MODE_REAGLD,    WAVEFORM_MODE_GL4, WAVEFORM_MODE_GL16_INV,
-	    WAVEFORM_MODE_AUTO};
-	std::vector<std::string> waveform_modes_str{"INIT",  "DU", "GC16",
-	                                            "GC16F", "A2", "GL16"};
+	std::vector<int> waveform_modes{WAVEFORM_MODE_INIT, WAVEFORM_MODE_DU,
+	                                WAVEFORM_MODE_GC16, WAVEFORM_MODE_GC16_FAST,
+	                                WAVEFORM_MODE_A2,   WAVEFORM_MODE_GL16,
+	                                WAVEFORM_MODE_AUTO};
+	std::vector<std::string> waveform_modes_str{"INIT", "DU",   "GC16", "GC16F",
+	                                            "A2",   "GL16", "AUTO"};
 
 	/* Update modes to test */
 	std::vector<int> update_modes{UPDATE_MODE_PARTIAL, UPDATE_MODE_FULL};
@@ -249,15 +260,13 @@ int main() {
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_INIT,
 				           UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(3));
-
 				// Draw the first test image
 				img_test_pg1.blit_to(layout, buf + buf_offs, stride, w, h);
 				draw_text(test_str, 375, 12, buf + buf_offs, stride, w, h);
 				mxc_update(fb_fd, 0, 0, w, h, WAVEFORM_MODE_GC16,
 				           UPDATE_MODE_FULL, 0);
 
-				std::this_thread::sleep_for(std::chrono::seconds(3));
+				std::this_thread::sleep_for(std::chrono::seconds(1));
 
 				// Draw the second test image
 				img_test_pg2.blit_to(layout, buf + buf_offs, stride, w, h);
