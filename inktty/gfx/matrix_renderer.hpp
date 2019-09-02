@@ -57,16 +57,19 @@ private:
 
 	bool m_needs_geometry_update;
 
+	RectangleMerger m_merger;
+
 	void update_geometry();
 
 	Rect get_coords(size_t row, size_t col);
 
-	Rect draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
-	               bool erase, bool low_quality=true);
+	Rect draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase,
+	               bool low_quality = true);
 
 public:
-	MatrixRenderer(const Configuration &config, Font &font, Display &display, Matrix &matrix,
-	       unsigned int font_size = 12 * 64, unsigned int orientation = 0);
+	MatrixRenderer(const Configuration &config, Font &font, Display &display,
+	               Matrix &matrix, unsigned int font_size = 12 * 64,
+	               unsigned int orientation = 0);
 
 	/**
 	 * Clears all cell content.

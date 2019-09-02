@@ -21,6 +21,7 @@
 
 #include <inktty/gfx/epaper_emulation.hpp>
 #include <inktty/gfx/matrix_renderer.hpp>
+#include <inktty/utils/logger.hpp>
 
 namespace inktty {
 
@@ -153,7 +154,7 @@ Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 		std::swap(fg, bg);
 	}
 
-	const Rect r = get_coords(row, col);
+	Rect r = get_coords(row, col);
 	Rect gr = r;
 	const GlyphBitmap *g = nullptr;
 	if (low_quality) {
@@ -180,10 +181,12 @@ Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 	if (g) {
 		gr = Rect::sized(r.x0 + g->x, r.y0 + g->y, g->w, g->h);
 		if (low_quality && bg != RGBA::White && bg != RGBA::Black) {
-			Rect gr2 = Rect::sized(r.x0 + g->x + 1, r.y0 + g->y + 1, g->w, g->h);
+			Rect gr2 =
+			    Rect::sized(r.x0 + g->x + 1, r.y0 + g->y + 1, g->w, g->h);
 			m_display.blit(
-				Display::Layer::Presentation, ~fg, g->buf(), g->stride, gr2,
-				erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
+			    Display::Layer::Presentation, ~fg, g->buf(), g->stride, gr2,
+			    erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
+			r = r.grow(gr2);
 		}
 		m_display.blit(
 		    Display::Layer::Presentation, fg, g->buf(), g->stride, gr,
@@ -210,6 +213,8 @@ void MatrixRenderer::draw(bool redraw, int dt) {
 
 	m_display.lock();  // TODO update screen size
 
+	m_merger.reset();
+
 	// Either redraw the entire screen or fetch a partial screen update
 	if (redraw) {
 		m_display.fill(Display::Layer::Background, RGBA::Black, m_bounds);
@@ -221,7 +226,9 @@ void MatrixRenderer::draw(bool redraw, int dt) {
 			for (size_t j = 0; j < m_matrix.size().x; j++) {
 				const Rect r1 = draw_cell(i, j, cell_old, true);
 				const Rect r2 = draw_cell(i, j, cells[i][j], false);
-				m_display.commit(r1.grow(r2), Display::CommitMode::Full);
+				m_merger.insert(r1.grow(r2));
+				//				m_display.commit(r1.grow(r2),
+				//Display::CommitMode::Full);
 			}
 		}
 	} else {
@@ -230,8 +237,18 @@ void MatrixRenderer::draw(bool redraw, int dt) {
 			const Rect r1 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.old, true);
 			const Rect r2 =
 			    draw_cell(u.pos.y - 1, u.pos.x - 1, u.current, false);
-			m_display.commit(r1.grow(r2), Display::CommitMode::Full);
+			//			m_display.commit(r1.grow(r2),
+			//Display::CommitMode::Full);
+			m_merger.insert(r1.grow(r2));
 		}
+	}
+
+	// Try to merge all rectangles in the merger
+	m_merger.merge();
+	for (const Rect &r : m_merger) {
+		m_display.commit(r, Display::CommitMode::Full);
+/*		global_logger().info() << r.x0 << "; " << r.y0 << "; " << r.x1 << "; "
+		                       << r.y1;*/
 	}
 
 	m_display.unlock();

@@ -27,6 +27,7 @@
 #ifndef INKTTY_UTILS_GEOMETRY_HPP
 #define INKTTY_UTILS_GEOMETRY_HPP
 
+#include <memory>
 #include <algorithm>
 #include <limits>
 
@@ -110,6 +111,8 @@ struct Rect {
 	 */
 	constexpr int height() const { return y1 - y0; }
 
+	constexpr int area() const { return width() * height(); }
+
 	/**
 	 * Clips the given x-coordinate to a valid x-coordinate within the screen
 	 * region.
@@ -175,6 +178,41 @@ struct Rect {
 	 * in 90° steps.
 	 */
 	Rect rotate(const Rect &bounds, int orientation) const;
+};
+
+/**
+ * The RectangleMerger class tries to merge multiple overlapping or close
+ * rectangles into larger rectangles without increasing the total area covered
+ * by the larger rectangles by too much.
+ */
+class RectangleMerger {
+private:
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
+
+public:
+	RectangleMerger();
+	~RectangleMerger();
+
+	/**
+	 * Resets the rectangle merger to its initial state.
+	 */
+	void reset();
+
+	/**
+	 * Inserts a new rectangle into the rectangle merger and tries to combine
+	 * it with the available rectangles.
+	 */
+	void insert(const Rect &r);
+
+	/**
+	 * Tries to merge individual rectangles currently stored in the rectangle
+	 * merger.
+	 */
+	void merge();
+
+	const Rect* begin() const;
+	const Rect* end() const;
 };
 
 }  // namespace inktty

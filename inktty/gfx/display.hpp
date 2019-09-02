@@ -27,21 +27,87 @@
 #include <inktty/utils/geometry.hpp>
 
 namespace inktty {
-
+/**
+ * The UpdateMode class represent a commit operation that updates the contents
+ * of a epaper displays. Full colour backends normally ignore these update modes
+ * unless they are put into a "epaper emulation mode".
+ *
+ * The update mode is split into an "output operation" and a "mask operation".
+ * The output operation defines how the content that should be drawn to the
+ * screen will be transformed, the "mask operation" determines the pixels that
+ * should actually be updated.
+ *
+ * Note that the update mode is mostly defined in terms of the visual result and
+ * are translated to a corresponding EPaper waveform mode.
+ */
 struct UpdateMode {
+	/**
+	 * The OutputOp enum describes the available output operations. These
+	 * operations are applied to the content that should be drawn on the screen.
+	 */
 	enum OutputOp {
+		/**
+		 * Do not apply any transformation. This is the default.
+		 */
 		Identity = 0x00,
+
+		/**
+		 * Convert all pixels to either being black or white.
+		 */
 		ForceMono = 0x01,
+
+		/**
+		 * Invert all pixels.
+		 */
 		Invert = 0x02,
+
+		/**
+		 * Invert and force the output to mono.
+		 */
 		InvertAndForceMono = 0x03,
+
+		/**
+		 * Set all pixels to being white.
+		 */
 		White = 0x04,
 	};
 
+	/**
+	 * The mask operation determines which pixels on the display will actually
+	 * be updated. This is defined in terms of the source (the content that
+	 * should be drawn) and the target (the current content of the display).
+	 */
 	enum MaskOp {
+		/**
+		 * Update all pixels, independent of the contents of the source and the
+		 * target buffer. This is the default.
+		 */
 		Full = 0x00,
+
+		/**
+		 * Only update the pixels that are either black or white in the source.
+		 */
 		SourceMono = 0x01,
+
+		/**
+		 * Only update the pixels that are either black or white in the target,
+		 * i.e. are currently black or white on the display. Note that this mode
+		 * may not be implemented on most displays in combination with most of
+		 * the other flags.
+		 */
 		TargetMono = 0x02,
+
+		/**
+		 * Only update pixels where both the currently displayed content is
+		 * either pure black or white and the target content is either pure
+		 * black or white.
+		 */
 		SourceAndTargetMono = 0x03,
+
+		/**
+		 * Only update pixels that are actually different. This is implied by
+		 * any other mode than "Full".
+		 */
 		Partial = 0x04
 	};
 
