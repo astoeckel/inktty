@@ -71,16 +71,15 @@ struct RGBA {
 		return (r == o.r) && (b == o.b) && (g == o.g) && (a == o.a);
 	}
 
-	bool operator!=(const RGBA &o) const {
-		return !((*this) == o);
-	}	
+	bool operator!=(const RGBA &o) const { return !((*this) == o); }
+
+	RGBA operator~() const {
+		return RGBA{uint8_t(~r), uint8_t(~g), uint8_t(~b), uint8_t(a)};
+	}
 
 	RGBA premultiply_alpha() const {
-		return RGBA(
-			uint16_t(r) * a / 255,
-			uint16_t(g) * a / 255,
-			uint16_t(b) * a / 255,
-			a);
+		return RGBA(uint16_t(r) * a / 255, uint16_t(g) * a / 255,
+		            uint16_t(b) * a / 255, a);
 	}
 };
 
@@ -103,7 +102,7 @@ public:
 	/**
 	 * Constructs a new empty palette of the given size.
 	 */
-	Palette(int size=0) : m_size(size) {
+	Palette(int size = 0) : m_size(size) {
 		/* Make sure the size is valid */
 		assert(size >= 0 && size <= 256);
 
@@ -172,12 +171,12 @@ public:
 
 	bool is_indexed() const { return m_mode == Mode::Indexed; }
 
-	bool is_rgb() const { return m_mode == Mode::RGB;}
+	bool is_rgb() const { return m_mode == Mode::RGB; }
 
 	/**
-	 * Returns the RGBA colour represented by this Colour instance. If the colour
-	 * is in indexed mode looks up the RGBA colour from the palette, otherwise
-	 * directly returns the colour.
+	 * Returns the RGBA colour represented by this Colour instance. If the
+	 * colour is in indexed mode looks up the RGBA colour from the palette,
+	 * otherwise directly returns the colour.
 	 *
 	 * @param p is the palette from which the colour should be looked up if in
 	 * indexed mode.
@@ -198,11 +197,47 @@ public:
 		        ((m_mode == Mode::RGB) && (m_rgb == o.m_rgb)));
 	}
 
-	bool operator!=(const Color &o) const {
-		return !((*this) == o);
-	}
+	bool operator!=(const Color &o) const { return !((*this) == o); }
 };
 
+/**
+ * Specifies the display color layout.
+ */
+struct ColorLayout {
+	/**
+	 * Bits per pixel.
+	 */
+	uint8_t bpp;
+
+	/**
+	 * Left/right shift per component to convert from 8 bit to the given
+	 * colour.
+	 */
+	uint8_t rr, rl, gr, gl, br, bl, ar, al;
+
+	/**
+	 * Converts the given colour to the specified colour space.
+	 */
+	uint32_t conv_from_rgba(const RGBA &c) const {
+		return ((uint32_t(c.r) >> rr) << rl) | ((uint32_t(c.g) >> gr) << gl) |
+		       ((uint32_t(c.b) >> br) << bl) | ((uint32_t(c.a) >> ar) << al);
+	}
+
+	RGBA conv_to_rgba(uint32_t x) const {
+		// Convert the uint32_t into a RGBA structure
+		RGBA res;
+		res.r = ((x >> rl) & ((1U << (8U - rr)) - 1U)) << rr;
+		res.g = ((x >> gl) & ((1U << (8U - gr)) - 1U)) << gr;
+		res.b = ((x >> bl) & ((1U << (8U - br)) - 1U)) << br;
+		res.a = ((x >> al) & ((1U << (8U - ar)) - 1U)) << ar;
+		return res;
+	}
+
+	/**
+	 * Computes the bytes per pixel.
+	 */
+	uint8_t bypp() const { return (bpp + 7U) >> 3U; }
+};
 }  // namespace inktty
 
 #endif /* INKTTY_UTILS_COLOR_HPP */

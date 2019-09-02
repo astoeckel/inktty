@@ -34,7 +34,7 @@
 #include <SDL.h>
 
 #include <inktty/backends/sdl.hpp>
-
+#include <inktty/gfx/epaper_emulation.hpp>
 
 #include <time.h>
 
@@ -57,6 +57,7 @@ private:
 	std::atomic_bool m_locked;
 	RGBA *m_pixels;
 	int m_pitch;
+	ColorLayout m_layout;
 
 	SDL_Window *m_wnd;
 	SDL_Surface *m_surf;
@@ -74,6 +75,8 @@ private:
 
 	const char *m_init_err;
 
+	bool m_epaper_emulation;
+
 	/**
 	 * This function runs on a separate thread and is the only function inside
 	 * the SDLBackend::Impl class that directly interacts with SDL.
@@ -84,9 +87,9 @@ private:
 		SDL_SetHint(SDL_HINT_NO_SIGNAL_HANDLERS, "1");
 		SDL_SetHint(SDL_HINT_RENDER_DRIVER, "software");
 		SDL_SetHint(SDL_HINT_RENDER_VSYNC, "0");
-		SDL_setenv("SDL_VIDEODRIVER", "x11", true); // Prevent SDL from using the fbcon
+		SDL_setenv("SDL_VIDEODRIVER", "x11",
+		           true);  // Prevent SDL from using the fbcon
 		SDL_Init(SDL_INIT_VIDEO);
-
 
 		// Create a window with the given size and abort if this fails
 		self->m_wnd = SDL_CreateWindow("inktty", SDL_WINDOWPOS_UNDEFINED,
@@ -104,6 +107,17 @@ private:
 		// Register the lock and unlock event
 		self->m_sdl_lock_event = SDL_RegisterEvents(1);
 		self->m_sdl_unlock_event = SDL_RegisterEvents(1);
+
+		// Set the surface color layout
+		self->m_layout.bpp = 32U;
+		self->m_layout.rr = 0U;
+		self->m_layout.rl = 0U;
+		self->m_layout.gr = 0U;
+		self->m_layout.gl = 8U;
+		self->m_layout.br = 0U;
+		self->m_layout.bl = 16U;
+		self->m_layout.ar = 0U;
+		self->m_layout.al = 24U;
 
 		// Initialisation done; notify the main thread
 		self->m_initialised = true;
@@ -187,12 +201,12 @@ private:
 				adj(m_ctrl);
 				break;
 			case SDLK_LALT:
-//			case SDLK_RALT: // Do not handle AltGr
+				//			case SDLK_RALT: // Do not handle AltGr
 				adj(m_alt);
 				break;
 		}
 		if (!down) {
-			return false; // Only handle key presses
+			return false;  // Only handle key presses
 		}
 
 		// Initialise the keyboard event
@@ -307,9 +321,12 @@ private:
 		const bool is_unicode = s < 0x40000039;
 		const bool is_numpad = (s >= 0x40000059 && s <= 0x40000063);
 		const bool is_keypad = (s >= 0x40000054 && s <= 0x40000057);
-		const bool is_char = (is_unicode || (numlock && is_numpad) || is_keypad) && !is_ascii_ctrl;
+		const bool is_char =
+		    (is_unicode || (numlock && is_numpad) || is_keypad) &&
+		    !is_ascii_ctrl;
 		if (!is_char) {
-			return keybd.key != Event::Key::NONE; // Only allow the keys handled above
+			return keybd.key !=
+			       Event::Key::NONE;  // Only allow the keys handled above
 		}
 
 		if (keybd.ctrl || keybd.alt) {
@@ -317,7 +334,7 @@ private:
 			return true;
 		}
 
-		return false; // Handled by TEXT_INPUT
+		return false;  // Handled by TEXT_INPUT
 	}
 
 	bool sdl_handle_text_event(const SDL_TextInputEvent &e, Event::Text &txt) {
@@ -337,7 +354,7 @@ private:
 	}
 
 public:
-	Impl(unsigned int width, unsigned int height)
+	Impl(unsigned int width, unsigned int height, bool epaper_emulation)
 	    : m_event_fd(eventfd(0, EFD_SEMAPHORE | EFD_CLOEXEC | EFD_NONBLOCK)),
 	      m_width(width),
 	      m_height(height),
@@ -351,7 +368,9 @@ public:
 	      m_shift(0),
 	      m_ctrl(0),
 	      m_alt(0),
-	      m_init_err(nullptr) {
+	      m_init_err(nullptr),
+	      m_epaper_emulation(epaper_emulation) {
+
 		// Wait for the GUI thread to initialise
 		std::unique_lock<std::mutex> lock(m_gui_mutex);
 		m_gui_cond_var.wait(lock, [this] { return !!m_initialised; });
@@ -393,7 +412,10 @@ public:
 	void unlock(const CommitRequest *begin, const CommitRequest *end,
 	            const RGBA *buf, size_t stride) {
 		// Copy the given regions to the pixel buffer
-		if (m_pixels) {
+		if (!m_pixels) {
+			return;
+		}
+		if (!m_epaper_emulation) {
 			for (CommitRequest const *req = begin; req < end; req++) {
 				const Rect r = req->r;
 				const int w = r.width();
@@ -402,6 +424,13 @@ public:
 					const RGBA *src = buf + y * stride / sizeof(RGBA) + r.x0;
 					std::copy(src, src + w, tar);
 				}
+			}
+		} else {
+			for (CommitRequest const *req = begin; req < end; req++) {
+				const Rect r = req->r;
+				epaper_emulation::update(reinterpret_cast<uint8_t *>(m_pixels),
+				                         m_pitch, m_layout, buf, stride, r.x0,
+				                         r.y0, r.x1, r.y1, UpdateMode());
 			}
 		}
 
@@ -461,8 +490,9 @@ public:
  * Class SDLBackend                                                           *
  ******************************************************************************/
 
-SDLBackend::SDLBackend(unsigned int width, unsigned int height)
-    : m_impl(new Impl(width, height)) {}
+SDLBackend::SDLBackend(unsigned int width, unsigned int height,
+                       bool epaper_emulation)
+    : m_impl(new Impl(width, height, epaper_emulation)) {}
 
 SDLBackend::~SDLBackend() {
 	// Do nothing here, implicitly destroy the implementation

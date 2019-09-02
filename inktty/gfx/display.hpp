@@ -27,6 +27,30 @@
 #include <inktty/utils/geometry.hpp>
 
 namespace inktty {
+
+struct UpdateMode {
+	enum OutputOp {
+		Identity = 0x00,
+		ForceMono = 0x01,
+		Invert = 0x02,
+		InvertAndForceMono = 0x03,
+		White = 0x04,
+	};
+
+	enum MaskOp {
+		Full = 0x00,
+		SourceMono = 0x01,
+		TargetMono = 0x02,
+		SourceAndTargetMono = 0x03,
+		Partial = 0x04
+	};
+
+	OutputOp output_op = Identity;
+	MaskOp mask_op = Full;
+
+	bool is_partial() const { return mask_op != Full; }
+};
+
 /**
  * Abstract display class used in the rest of the application to interface with
  * the screen. Conceptually the display consists of a back-buffer and a
@@ -148,8 +172,10 @@ public:
 	 * also determines the width/height of the source image.
 	 */
 	virtual void blit(Layer layer, const RGBA &c, const uint8_t *mask,
-	                  size_t stride, const Rect r,
+	                  size_t stride, const Rect &r,
 	                  DrawMode mode = DrawMode::Write) = 0;
+
+	virtual void fill_dither(Layer layer, uint8_t g, const Rect &r = Rect()) = 0;
 
 	/**
 	 * Fills the specified rectangle with the given solid colour.
@@ -236,7 +262,12 @@ public:
 	 * also determines the width/height of the source image.
 	 */
 	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
-	          const Rect r, DrawMode mode = DrawMode::Write) override;
+	          const Rect &r, DrawMode mode = DrawMode::Write) override;
+
+	/**
+	 * Fills the specified rectangle with the given dithering pattern.
+	 */
+	void fill_dither(Layer layer, uint8_t g, const Rect &r = Rect()) override;
 
 	/**
 	 * Fills the specified rectangle with the given solid colour.

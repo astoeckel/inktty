@@ -30,12 +30,14 @@
 using namespace inktty;
 
 static std::unique_ptr<Display> get_display(
-    const std::string &name, std::vector<EventSource *> &event_sources) {
+    const Configuration &config, std::vector<EventSource *> &event_sources) {
+	const std::string &name = config.general.backend;
 	std::unique_ptr<Display> display;
 #ifdef HAS_SDL
 	if ((name == "sdl" || name == "default") && !display) {
 		try {
-			SDLBackend *sdl_backend = new SDLBackend(800, 600);
+			SDLBackend *sdl_backend =
+			    new SDLBackend(800, 600, config.general.sdl_epaper_emulation);
 			display = std::unique_ptr<Display>(sdl_backend);
 			event_sources.push_back(sdl_backend);
 		} catch (std::runtime_error &e) {
@@ -60,8 +62,7 @@ int main(int argc, const char *argv[]) {
 
 	// Try to allocate a display
 	std::vector<EventSource *> event_sources;
-	std::unique_ptr<Display> display =
-	    get_display(config.general.backend, event_sources);
+	std::unique_ptr<Display> display = get_display(config, event_sources);
 	if (!display) {
 		global_logger().fatal_error() << "Couldn't allocate a display.";
 		return 1;

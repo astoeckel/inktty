@@ -62,7 +62,7 @@ private:
 	Rect get_coords(size_t row, size_t col);
 
 	Rect draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
-	               bool erase);
+	               bool erase, bool low_quality=true);
 
 public:
 	MatrixRenderer(const Configuration &config, Font &font, Display &display, Matrix &matrix,
@@ -77,8 +77,10 @@ public:
 	 * Draws the matrix to the screen.
 	 *
 	 * @param redraw if true, redraws the entire screen.
+	 * @param dt is the number of milliseconds that passed since the last call
+	 * to "draw".
 	 */
-	void draw(bool redraw = false);
+	void draw(bool redraw = false, int dt = 0);
 
 	void set_font_size(unsigned int font_size);
 

@@ -67,6 +67,8 @@ lib_inktty = library(
 		'inktty/config/toml.cpp',
 		'inktty/fontdata/font_8x16.c',
 		'inktty/gfx/display.cpp',
+		'inktty/gfx/dither.cpp',
+		'inktty/gfx/epaper_emulation.cpp',
 		'inktty/gfx/font.cpp',
 		'inktty/gfx/font_bitmap.cpp',
 		'inktty/gfx/font_cache.cpp',
@@ -92,6 +94,13 @@ lib_inktty = library(
 dep_foxenunit = dependency(
     'libfoxenunit',
     fallback:['libfoxenunit', 'dep_foxenunit'])
+exe_test_utils_color = executable(
+    'test_utils_color',
+    'test/utils/test_color.cpp',
+    include_directories: [inc_inktty],
+    dependencies: [dep_foxenunit],
+    link_with: [lib_inktty],
+    install: false)
 exe_test_utils_utf8 = executable(
     'test_utils_utf8',
     'test/utils/test_utf8.cpp',
@@ -106,6 +115,7 @@ exe_test_term_matrix = executable(
     dependencies: [dep_foxenunit],
     link_with: [lib_inktty],
     install: false)
+test('test_utils_color', exe_test_utils_color)
 test('test_utils_utf8', exe_test_utils_utf8)
 test('test_term_matrix', exe_test_term_matrix)
 

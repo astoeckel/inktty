@@ -20,9 +20,8 @@
 #include <mutex>
 #include <vector>
 
-#include <iostream> // XXX
-
 #include <inktty/gfx/display.hpp>
+#include <inktty/gfx/dither.hpp>
 
 namespace inktty {
 
@@ -190,31 +189,35 @@ public:
 		m_commit_requests.emplace_back(CommitRequest{tar, mode});
 	}
 
-	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
-	          const Rect r, DrawMode mode) {
+	RGBA* get_target_pointer_and_clip_rect(Layer layer, Rect &r) {
 		// Abort if the surface is not locked
 		if (m_locked <= 0) {
-			return;
+			return nullptr;
 		}
 
 		// Clip the given rectangle to the target rectangle and abort if there
 		// is nothing to draw
 		const Rect tar = m_surf_rect.clip(r);
 		if (tar.width() == 0 || tar.height() == 0) {
-			return;
+			return nullptr;
 		}
 
 		// Fetch the target pointer
-		RGBA *p = target_pointer(layer);
+		return target_pointer(layer);
+	}
+
+	void blit(Layer layer, const RGBA &c, const uint8_t *mask, size_t stride,
+	          Rect r, DrawMode mode) {
+		RGBA *p = get_target_pointer_and_clip_rect(layer, r);
 		if (!p) {
-			return;  // Invalid layer specified
+			return;
 		}
 
 		// Blit the given data onto the target surface
-		const size_t w = tar.x1 - tar.x0;
-		for (size_t y = size_t(tar.y0); y < size_t(tar.y1); y++) {
-			RGBA *ptar = p + (m_stride * y) / sizeof(RGBA) + tar.x0;
-			const uint8_t *psrc = mask + stride * (y - tar.y0);
+		const size_t w = r.x1 - r.x0;
+		for (size_t y = size_t(r.y0); y < size_t(r.y1); y++) {
+			RGBA *ptar = p + (m_stride * y) / sizeof(RGBA) + r.x0;
+			const uint8_t *psrc = mask + stride * (y - r.y0);
 			if (mode == DrawMode::Write) {
 				for (size_t x = 0; x < w; x++) {
 					const uint16_t a = psrc[x];
@@ -233,36 +236,27 @@ public:
 		}
 	}
 
-	void fill(Layer layer, const RGBA &c, const Rect &r) {
-		// Abort if the surface is not locked
-		if (m_locked <= 0) {
+	void fill_dither(Layer layer, uint8_t g, Rect r) {
+		RGBA *p = get_target_pointer_and_clip_rect(layer, r);
+		if (!p) {
 			return;
 		}
 
-		// Clip the given rectangle to the target rectangle and abort if there
-		// is nothing to draw
-		Rect tar;
-		if (!r.valid()) {
-			tar = m_surf_rect;
-		} else {
-			tar = m_surf_rect.clip(r);
-			if (tar.width() == 0 || tar.height() == 0) {
-				return;  // Nothing to draw
-			}
-		}
+		dither::ordered_binary_4bit_greyscale(g, p, m_stride, r.x0, r.y0, r.x1, r.y1);
+	}
 
-		// Fetch the target pointer
-		RGBA *p = target_pointer(layer);
+	void fill(Layer layer, const RGBA &c, Rect r) {
+		RGBA *p = get_target_pointer_and_clip_rect(layer, r);
 		if (!p) {
-			return;  // Invalid layer specified
+			return;
 		}
 
 		// Fill the specified rectangle with the colour premultiplied with the
 		// alpha channel. Premultiplied alpha makes the composition faster.
 		const RGBA f = c.premultiply_alpha();
-		for (size_t y = size_t(tar.y0); y < size_t(tar.y1); y++) {
-			RGBA *py = p + (m_stride * y) / sizeof(RGBA) + tar.x0;
-			std::fill(py, py + tar.width(), f);
+		for (size_t y = size_t(r.y0); y < size_t(r.y1); y++) {
+			RGBA *py = p + (m_stride * y) / sizeof(RGBA) + r.x0;
+			std::fill(py, py + r.width(), f);
 		}
 	}
 };
@@ -286,9 +280,14 @@ void MemoryDisplay::commit(const Rect &r, CommitMode mode) {
 }
 
 void MemoryDisplay::blit(Layer layer, const RGBA &c, const uint8_t *mask,
-                         size_t stride, const Rect r, DrawMode mode) {
+                         size_t stride, const Rect &r, DrawMode mode) {
 	m_impl->blit(layer, c, mask, stride, r, mode);
 }
+
+void MemoryDisplay::fill_dither(Layer layer, uint8_t g, const Rect &r) {
+	m_impl->fill_dither(layer, g, r);
+}
+
 
 void MemoryDisplay::fill(Layer layer, const RGBA &c, const Rect &r) {
 	m_impl->fill(layer, c, r);

@@ -151,15 +151,11 @@ public:
 
 			// Redraw the UI in 16.667 ms intervals (corresponding to 60 Hz)
 			const int64_t t = microtime();
-			int timeout = -1;
-			if (m_needs_redraw) {
-				timeout = (16667 - (t - m_t_last_draw)) / 1000;
-				if (timeout <= 0) {
-					m_matrix_renderer.draw();
-					m_t_last_draw = t;
-					m_needs_redraw = false;
-					timeout = -1;
-				}
+			const int timeout = 32;
+			int dt = (t - m_t_last_draw) / 1000;
+			if (dt >= timeout) {
+				m_matrix_renderer.draw(false, dt);
+				m_t_last_draw = t;
 			}
 
 			// Wait for a new event or sleep for the timeout calculated above

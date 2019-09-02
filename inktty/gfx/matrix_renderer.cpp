@@ -19,6 +19,7 @@
 #include <algorithm>
 #include <iostream>
 
+#include <inktty/gfx/epaper_emulation.hpp>
 #include <inktty/gfx/matrix_renderer.hpp>
 
 namespace inktty {
@@ -127,7 +128,7 @@ Rect MatrixRenderer::get_coords(size_t row, size_t col) {
 }
 
 Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
-                               bool erase) {
+                               bool erase, bool low_quality) {
 	/* Fetch foreground and background colour */
 	const auto &cc = m_config.colors;  // color config
 	Color cfg = cell.style.fg, cbg = cell.style.bg;
@@ -152,36 +153,62 @@ Rect MatrixRenderer::draw_cell(size_t row, size_t col, const Matrix::Cell &cell,
 		std::swap(fg, bg);
 	}
 
-	// Draw the background
 	const Rect r = get_coords(row, col);
 	Rect gr = r;
-	if (!erase) {
-		m_display.fill(Display::Layer::Background, bg, r);
+	const GlyphBitmap *g = nullptr;
+	if (low_quality) {
+		const uint8_t g_fg = epaper_emulation::rgba_to_greyscale(fg);
+		const uint8_t g_bg = epaper_emulation::rgba_to_greyscale(bg);
+		if (!erase) {
+			m_display.fill_dither(Display::Layer::Background, g_bg, r);
+		}
+		if (fg != bg) {
+			g = m_font.render(cell.glyph, m_font_size, true, m_orientation);
+		}
+		if (g_fg >= g_bg) {
+			fg = RGBA::White;
+		} else {
+			fg = RGBA::Black;
+		}
+	} else {
+		if (!erase) {
+			m_display.fill(Display::Layer::Background, bg, r);
+		}
+		g = m_font.render(cell.glyph, m_font_size, false, m_orientation);
 	}
 
-	// Draw the glyph
-	const GlyphBitmap *g =
-	    m_font.render(cell.glyph, m_font_size, false, m_orientation);
 	if (g) {
 		gr = Rect::sized(r.x0 + g->x, r.y0 + g->y, g->w, g->h);
+		if (low_quality && bg != RGBA::White && bg != RGBA::Black) {
+			Rect gr2 = Rect::sized(r.x0 + g->x + 1, r.y0 + g->y + 1, g->w, g->h);
+			m_display.blit(
+				Display::Layer::Presentation, ~fg, g->buf(), g->stride, gr2,
+				erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
+		}
 		m_display.blit(
 		    Display::Layer::Presentation, fg, g->buf(), g->stride, gr,
 		    erase ? Display::DrawMode::Erase : Display::DrawMode::Write);
 	}
-
 	return r.grow(gr);
 }
 
-void MatrixRenderer::draw(bool redraw) {
+void MatrixRenderer::draw(bool redraw, int dt) {
 	// Check whether the geometry needs to be updated
-	const Rect new_bounds = m_display.lock();  // TODO update screen size
-	if (new_bounds != m_bounds) {
-		m_bounds = new_bounds;
-		m_needs_geometry_update = true;
+	/*	if (new_bounds != m_bounds) {
+	        m_bounds = new_bounds;
+	        m_needs_geometry_update = true;
+	    }
+	    if (m_needs_geometry_update) {
+	        update_geometry();  // Resets m_needs_geometry_update
+	    }*/
+
+	std::vector<Matrix::CellUpdate> updates;
+	m_matrix.commit(updates);
+	if (updates.empty() && !redraw) {
+		return;
 	}
-	if (m_needs_geometry_update) {
-		update_geometry();  // Resets m_needs_geometry_update
-	}
+
+	m_display.lock();  // TODO update screen size
 
 	// Either redraw the entire screen or fetch a partial screen update
 	if (redraw) {
@@ -198,8 +225,6 @@ void MatrixRenderer::draw(bool redraw) {
 			}
 		}
 	} else {
-		std::vector<Matrix::CellUpdate> updates;
-		m_matrix.commit(updates);
 		for (size_t i = 0; i < updates.size(); i++) {
 			const Matrix::CellUpdate &u = updates[i];
 			const Rect r1 = draw_cell(u.pos.y - 1, u.pos.x - 1, u.old, true);

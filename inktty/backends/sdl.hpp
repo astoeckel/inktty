@@ -52,7 +52,7 @@ public:
 	 * Creates a new SDLDisplay instance that opens a window with the specified
 	 * width and height.
 	 */
-	SDLBackend(unsigned int width, unsigned int height);
+	SDLBackend(unsigned int width, unsigned int height, bool epaper_emulation);
 
 	/**
 	 * Destroys the SDLDisplay instance.

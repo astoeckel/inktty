@@ -34,50 +34,20 @@
 #include <unistd.h>
 
 #define STB_IMAGE_IMPLEMENTATION
-#include "stb_image.h"
 
+#include "../inktty/utils/color.hpp"
 #include "../inktty/fontdata/font_8x16.c"
 #include "../inktty/fontdata/font_8x16.h"
+#include "../lib/stb_image.h"
 #include "../lib/mxcfb.h"
+
+using namespace inktty;
 
 /* This is a small program used to test the various update modes of the MXCFB
  * framebuffer driver for eink displays. */
 
 // Framebuffer device to use
 static const char *fbdev = "/dev/fb0";
-
-struct RGBA {
-	uint8_t r, g, b, a;
-};
-
-/**
- * Specifies the display color layout.
- */
-struct ColorLayout {
-	/**
-	 * Bits per pixel.
-	 */
-	uint8_t bpp;
-
-	/**
-	 * Left/right shift per component to convert from 8 bit to the given
-	 * colour.
-	 */
-	uint8_t rr, rl, gr, gl, br, bl, ar, al;
-
-	/**
-	 * Converts the given colour to the specified colour space.
-	 */
-	uint32_t conv(const RGBA &c) const {
-		return ((uint32_t(c.r) >> rr) << rl) | ((uint32_t(c.g) >> gr) << gl) |
-		       ((uint32_t(c.b) >> br) << bl) | ((uint32_t(c.a) >> ar) << al);
-	}
-
-	/**
-	 * Computes the bytes per pixel.
-	 */
-	uint8_t bypp() const { return (bpp + 7U) >> 3U; }
-};
 
 struct Image {
 	int w, h, n;
@@ -100,7 +70,7 @@ struct Image {
 			uint8_t *ptar = tar + y * tar_stride;
 			const RGBA *psrc = reinterpret_cast<RGBA *>(buf + 4 * w * y);
 			for (int x = 0; x < std::min(tar_w, w); x++) {
-				const uint32_t cc = layout.conv(*(psrc++));
+				const uint32_t cc = layout.conv_from_rgba(*(psrc++));
 				for (int k = 0; k < bypp; k++) {
 					*(ptar++) = (cc >> (8 * k)) & 0xFF;
 				}

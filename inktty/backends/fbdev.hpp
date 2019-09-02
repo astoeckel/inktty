@@ -29,39 +29,8 @@ namespace inktty {
  */
 class FbDevDisplay : public MemoryDisplay  {
 private:
-	/**
-	 * Specifies the display color layout.
-	 */
-	struct ColorLayout {
-		/**
-		 * Bits per pixel.
-		 */
-		uint8_t bpp;
-
-		/**
-		 * Left/right shift per component to convert from 8 bit to the given
-		 * colour.
-		 */
-		uint8_t rr, rl, gr, gl, br, bl;
-
-		/**
-		 * Converts the given colour to the specified colour space.
-		 */
-		uint32_t conv(const RGBA &c) const
-		{
-			return ((uint32_t(c.r) >> rr) << rl) |
-			       ((uint32_t(c.g) >> gr) << gl) |
-			       ((uint32_t(c.b) >> br) << bl);
-		}
-
-		/**
-		 * Computes the bytes per pixel.
-		 */
-		uint8_t bypp() const { return (bpp + 7U) >> 3U; }
-	};
-
 	enum class Type {
-		EPaper_MXC,
+		EPaper,
 		Generic
 	};
 

@@ -46,6 +46,8 @@ struct General {
 	 */
 	int orientation;
 
+	bool sdl_epaper_emulation;
+
 	/**
 	 * Default constructor, sets all values to defaults.
 	 */

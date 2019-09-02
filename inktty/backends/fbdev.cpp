@@ -86,7 +86,7 @@ FbDevDisplay::FbDevDisplay(const char *fbdev) : m_epaper_mxc_marker(0), m_epaper
 	/* Read the screen id */
 	const std::string id(finfo.id, strnlen(finfo.id, sizeof(finfo.id)));
 	if (id == "mxc_epdc_fb") {
-		m_type = Type::EPaper_MXC;
+		m_type = Type::EPaper;
 	} else {
 		m_type = Type::Generic;
 	}
@@ -100,9 +100,11 @@ FbDevDisplay::FbDevDisplay(const char *fbdev) : m_epaper_mxc_marker(0), m_epaper
 	m_layout.rr = 8U - vinfo.red.length;
 	m_layout.gr = 8U - vinfo.green.length;
 	m_layout.br = 8U - vinfo.blue.length;
+	m_layout.ar = 8U - vinfo.transp.length;
 	m_layout.rl = vinfo.red.offset;
 	m_layout.gl = vinfo.green.offset;
 	m_layout.bl = vinfo.blue.offset;
+	m_layout.al = vinfo.transp.offset;
 
 	/* Print some information */
 	global_logger().info() << "Opened \"" << fbdev << "\": \"" << id << "\" ("
@@ -119,6 +121,9 @@ FbDevDisplay::FbDevDisplay(const char *fbdev) : m_epaper_mxc_marker(0), m_epaper
 	m_stride = finfo.line_length;
 	m_buf_offs =
 	    m_buf + vinfo.xoffset * m_layout.bypp() + vinfo.yoffset * m_stride;
+
+	uint32_t upd_scheme = UPDATE_SCHEME_QUEUE;
+	ioctl(m_fb_fd, MXCFB_SET_UPDATE_SCHEME, &upd_scheme);
 }
 
 FbDevDisplay::~FbDevDisplay() {
@@ -130,11 +135,7 @@ Rect FbDevDisplay::do_lock() { return Rect(0, 0, m_width, m_height); }
 
 
 void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h, int flags) {
-	m_epaper_mxc_marker = (m_epaper_mxc_marker + 1) % 1024;
-
-	if (m_epaper_mxc_prev_marker) {
-		ioctl(m_fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, m_epaper_mxc_prev_marker);
-	}
+	static constexpr uint32_t MARKER = 0x4a58f17c;
 
 	struct mxcfb_update_data data;
 	memset(&data, 0, sizeof(data));
@@ -142,12 +143,12 @@ void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h, int flags) {
 	data.update_region.left = x;
 	data.update_region.width = w;
 	data.update_region.height = h;
-	data.waveform_mode = WAVEFORM_MODE_GC16_FAST;
-	data.update_mode = UPDATE_MODE_FULL;
-	data.update_marker = m_epaper_mxc_marker;
+	data.waveform_mode = WAVEFORM_MODE_A2;
+	data.update_mode = UPDATE_MODE_PARTIAL;
+	data.update_marker = MARKER;
 
 	ioctl(m_fb_fd, MXCFB_SEND_UPDATE, &data);
-	m_epaper_mxc_prev_marker = m_epaper_mxc_marker;
+	ioctl(m_fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &MARKER);
 }
 
 void FbDevDisplay::do_unlock(const CommitRequest *begin,
@@ -161,14 +162,14 @@ void FbDevDisplay::do_unlock(const CommitRequest *begin,
 			uint8_t *ptar = m_buf_offs + y * m_stride + r.x0 * bypp;
 			RGBA const *psrc = buf + y * stride / sizeof(RGBA) + r.x0;
 			for (int x = 0; x < w; x++) {
-				const uint32_t cc = m_layout.conv(*(psrc++));
+				const uint32_t cc = m_layout.conv_from_rgba(*(psrc++));
 				for (int k = 0; k < bypp; k++) {
 					*(ptar++) = (cc >> (8 * k)) & 0xFF;
 				}
 			}
 		}
 
-		if (m_type == Type::EPaper_MXC) {
+		if (m_type == Type::EPaper) {
 			epaper_mxc_update(r.x0, r.y0, r.width(), r.height(), 0);
 		}
 	}

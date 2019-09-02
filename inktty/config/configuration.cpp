@@ -63,7 +63,7 @@ public:
  * Class General                                                              *
  ******************************************************************************/
 
-General::General() : orientation(0) {}
+General::General() : orientation(0), sdl_epaper_emulation(true) {}
 
 /******************************************************************************
  * Class Colors                                                               *
