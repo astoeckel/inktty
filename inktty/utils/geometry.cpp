@@ -22,19 +22,6 @@
 #include <inktty/utils/geometry.hpp>
 
 namespace inktty {
-/******************************************************************************
- * Class Rect                                                                 *
- ******************************************************************************/
-
-Rect Rect::rotate(const Rect &bounds, int orientation) const { return Rect{}; }
-
-/******************************************************************************
- * Class Point                                                                *
- ******************************************************************************/
-
-Point Point::rotate(const Rect &bounds, int orientation) const {
-	return Point{};
-}
 
 /******************************************************************************
  * Class RectangleMerger::Impl                                                *

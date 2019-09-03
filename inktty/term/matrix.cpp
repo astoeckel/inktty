@@ -108,10 +108,7 @@ bool Matrix::valid(const Point &p) const {
 }
 
 void Matrix::extend_update_bounds(const Point &p) {
-	m_update_bounds.x0 = std::min(m_update_bounds.x0, p.x);
-	m_update_bounds.y0 = std::min(m_update_bounds.y0, p.y);
-	m_update_bounds.x1 = std::max(m_update_bounds.x1, p.x);
-	m_update_bounds.y1 = std::max(m_update_bounds.y1, p.y);
+	m_update_bounds = m_update_bounds.grow(p);
 }
 
 void Matrix::reset() {
@@ -260,7 +257,7 @@ void Matrix::set_alternative_buffer_active(bool active) {
 	}
 }
 
-void Matrix::commit(std::vector<CellUpdate> &updates) {
+void Matrix::commit(std::vector<Point> &updates) {
 	// Remove the "cursor" flag from the cell that last had the cursor
 	if (m_cursor_visible_old && valid(m_pos_old)) {
 		Cell &c = m_cells[m_pos_old.y - 1][m_pos_old.x - 1];
@@ -286,7 +283,7 @@ void Matrix::commit(std::vector<CellUpdate> &updates) {
 
 			// Check whether we actually need to update the cell
 			if (cell.needs_update(cell_old)) {
-				updates.emplace_back(CellUpdate{Point{x, y}, cell, cell_old});
+				updates.emplace_back(x, y);
 			}
 
 			// Reset the "dirty" flag and copy the current cell content to the

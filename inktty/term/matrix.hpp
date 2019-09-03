@@ -165,26 +165,6 @@ public:
 	 */
 	using CellArray = std::vector<std::vector<Cell>>;
 
-	/**
-	 * Data structure used to inform about a partial matrix update.
-	 */
-	struct CellUpdate {
-		/**
-		 * Position this CellUpdate instance is refering to.
-		 */
-		Point pos;
-
-		/**
-		 * The new, current content of the cell.
-		 */
-		Cell current;
-
-		/**
-		 * Old cell content before the update.
-		 */
-		Cell old;
-	};
-
 private:
 	/**
 	 * Cell array holding the current cell contents.
@@ -320,7 +300,8 @@ public:
 	 * Scrolls the entire view one line up or down. Inserts a blank row with the
 	 * given style.
 	 */
-	void scroll(uint32_t glyph, const Style &style, const Rect &r, int downward, int rightward);
+	void scroll(uint32_t glyph, const Style &style, const Rect &r, int downward,
+	            int rightward);
 
 	void set_alternative_buffer_active(bool active);
 
@@ -331,7 +312,7 @@ public:
 	 * update will be present in the "updates" vector. Updates are likely not
 	 * in the sequence in which the above functions were called.
 	 */
-	void commit(std::vector<CellUpdate> &updates);
+	void commit(std::vector<Point> &updates);
 };
 
 }  // namespace inktty

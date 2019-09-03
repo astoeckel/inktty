@@ -430,7 +430,7 @@ public:
 				const Rect r = req->r;
 				epaper_emulation::update(reinterpret_cast<uint8_t *>(m_pixels),
 				                         m_pitch, m_layout, buf, stride, r.x0,
-				                         r.y0, r.x1, r.y1, UpdateMode());
+				                         r.y0, r.x1, r.y1, req->mode);
 			}
 		}
 

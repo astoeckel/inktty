@@ -111,10 +111,11 @@ struct UpdateMode {
 		Partial = 0x04
 	};
 
-	OutputOp output_op = Identity;
-	MaskOp mask_op = Full;
+	OutputOp output_op;
+	MaskOp mask_op;
 
-	bool is_partial() const { return mask_op != Full; }
+	UpdateMode(OutputOp output_op = Identity, MaskOp mask_op = Full)
+	    : output_op(output_op), mask_op(mask_op) {}
 };
 
 /**
@@ -125,38 +126,6 @@ struct UpdateMode {
  */
 class Display {
 public:
-	/**
-	 * The CommitMode enum is used to specify the quality with which the screen
-	 * is updated. The screen update can either be fast with low quality or slow
-	 * with a high quality.
-	 */
-	enum class CommitMode {
-		/**
-		 * Perform an automatic partial update with default quality.
-		 */
-		Partial,
-
-		/**
-		 * Perform a partial update with a forced flash-to-black.
-		 */
-		Flash_Partial,
-
-		/**
-		 * Perform an with low quality as used for UI elements.
-		 */
-		Flash_Ui,
-
-		/**
-		 * Perform a full, high-quality update.
-		 */
-		Full,
-
-		/**
-		 * Perform a fast update with low-quality.
-		 */
-		Fast,
-	};
-
 	/**
 	 * The display consists of three independent layers that are composed into a
 	 * single image when commiting to the display.
@@ -218,13 +187,13 @@ public:
 
 	/**
 	 * Commits the content written to the display to the screen in the given
-	 * region. This function allows to specify a "CommitMode" which can be used
+	 * region. This function allows to specify an UpdateMode which can be used
 	 * by e-paper displays to choose the driving waveforms for this operation.
 	 * Note that the actual commit operation takes place once unlock() is called
 	 * and after all drawing operations occured.
 	 */
 	virtual void commit(const Rect &r = Rect(),
-	                    CommitMode mode = CommitMode::Full) = 0;
+	                    UpdateMode mode = UpdateMode()) = 0;
 
 	/**
 	 * Blits the given mask bitmap (i.e. an 8-bit grayscale image) to the
@@ -241,7 +210,8 @@ public:
 	                  size_t stride, const Rect &r,
 	                  DrawMode mode = DrawMode::Write) = 0;
 
-	virtual void fill_dither(Layer layer, uint8_t g, const Rect &r = Rect()) = 0;
+	virtual void fill_dither(Layer layer, uint8_t g,
+	                         const Rect &r = Rect()) = 0;
 
 	/**
 	 * Fills the specified rectangle with the given solid colour.
@@ -262,7 +232,7 @@ protected:
 	 */
 	struct CommitRequest {
 		Rect r;
-		CommitMode mode;
+		UpdateMode mode;
 	};
 
 	/**
@@ -308,13 +278,13 @@ public:
 
 	/**
 	 * Commits the content written to the display to the screen in the given
-	 * region. This function allows to specify a "CommitMode" which can be used
+	 * region. This function allows to specify an "UpdateMode" which can be used
 	 * by e-paper displays to choose the driving waveforms for this operation.
 	 * Note that the actual commit operation takes place once unlock() is called
 	 * and after all drawing operations occured.
 	 */
 	void commit(const Rect &r = Rect(),
-	            CommitMode mode = CommitMode::Full) override;
+	            UpdateMode mode = UpdateMode()) override;
 
 	/**
 	 * Blits the given mask bitmap (i.e. an 8-bit grayscale image) to the

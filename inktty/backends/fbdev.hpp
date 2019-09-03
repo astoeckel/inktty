@@ -86,7 +86,7 @@ private:
 	/**
 	 * Used internally to commit a change to the epaper display.
 	 */
-	void epaper_mxc_update(int x, int y, int w, int h, int flags);
+	void epaper_mxc_update(int x, int y, int w, int h, const UpdateMode &mode);
 
 protected:
 	/* Implementation of the abstract class MemoryDisplay */

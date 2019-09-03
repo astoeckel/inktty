@@ -62,7 +62,8 @@ namespace inktty {
  * Class FbDevDisplay                                                         *
  ******************************************************************************/
 
-FbDevDisplay::FbDevDisplay(const char *fbdev) : m_epaper_mxc_marker(0), m_epaper_mxc_prev_marker(0) {
+FbDevDisplay::FbDevDisplay(const char *fbdev)
+    : m_epaper_mxc_marker(0), m_epaper_mxc_prev_marker(0) {
 	/* Try to open the framebuffer device */
 	m_fb_fd = open(fbdev, O_RDWR);
 	if (m_fb_fd < 0) {
@@ -133,8 +134,8 @@ FbDevDisplay::~FbDevDisplay() {
 
 Rect FbDevDisplay::do_lock() { return Rect(0, 0, m_width, m_height); }
 
-
-void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h, int flags) {
+void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h,
+                                     const UpdateMode &mode) {
 	static constexpr uint32_t MARKER = 0x4a58f17c;
 
 	struct mxcfb_update_data data;
@@ -143,9 +144,41 @@ void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h, int flags) {
 	data.update_region.left = x;
 	data.update_region.width = w;
 	data.update_region.height = h;
-	data.waveform_mode = WAVEFORM_MODE_A2;
-	data.update_mode = UPDATE_MODE_PARTIAL;
 	data.update_marker = MARKER;
+
+	// Do a full update in case the update mode is set to "Full"
+	data.update_mode = (mode.mask_op == UpdateMode::Full) ? UPDATE_MODE_FULL
+	                                                      : UPDATE_MODE_PARTIAL;
+
+	// Set the waveform
+	data.waveform_mode = 0xFFFF;
+	if (mode.mask_op == UpdateMode::SourceMono) {
+		data.waveform_mode = WAVEFORM_MODE_DU;
+	} else if (mode.mask_op == UpdateMode::SourceAndTargetMono) {
+		data.waveform_mode = WAVEFORM_MODE_A2;
+	} else if (mode.mask_op == UpdateMode::TargetMono) {
+		if (mode.output_op & UpdateMode::ForceMono) {
+			data.waveform_mode = WAVEFORM_MODE_A2;
+		}
+	} else if (mode.output_op == UpdateMode::Identity) {
+		if (mode.mask_op == UpdateMode::Full) {
+			data.waveform_mode = WAVEFORM_MODE_GC16;
+		} else {
+			data.waveform_mode = WAVEFORM_MODE_GC16_FAST;
+		}
+	}
+	if (data.waveform_mode == 0xFFFF) {
+		global_logger().warn() << "Invalid update mode.";
+		data.waveform_mode = WAVEFORM_MODE_AUTO;
+	}
+
+	// Set the flags
+	if (mode.output_op & UpdateMode::Invert) {
+		data.flags |= EPDC_FLAG_ENABLE_INVERSION;
+	}
+	if (mode.output_op & UpdateMode::ForceMono) {
+		data.flags |= EPDC_FLAG_FORCE_MONOCHROME;
+	}
 
 	ioctl(m_fb_fd, MXCFB_SEND_UPDATE, &data);
 	ioctl(m_fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &MARKER);
@@ -170,7 +203,7 @@ void FbDevDisplay::do_unlock(const CommitRequest *begin,
 		}
 
 		if (m_type == Type::EPaper) {
-			epaper_mxc_update(r.x0, r.y0, r.width(), r.height(), 0);
+			epaper_mxc_update(r.x0, r.y0, r.width(), r.height(), req->mode);
 		}
 	}
 }

@@ -42,15 +42,6 @@ struct Point {
 
 	constexpr Point(int x, int y) : x(x), y(y) {}
 
-	/**
-	 * Rotates the given bounding rectangle and returns the location of this 2D
-	 * point within the bounding rectangle.
-	 *
-	 *
-	 * @param bounds is the original bounding rectangle.
-	 */
-	Point rotate(const Rect &bounds, int orientation) const;
-
 	friend Point operator +(const Point &p, const Point &q) {
 		return Point(p.x + q.x, p.y + q.y);
 	}
@@ -137,18 +128,23 @@ struct Rect {
 		}
 	}
 
-	Point clip(Point p, bool border = false) const {
+	Point clip(const Point &p, bool border = false) const {
 		return Point(clipx(p.x, border), clipy(p.y, border));
 	}
 
-	Rect clip(Rect r) const {
+	Rect clip(const Rect &r) const {
 		return Rect{clipx(r.x0), clipy(r.y0), clipx(r.x1, true),
 		            clipy(r.y1, true)};
 	}
 
-	Rect grow(Rect r) const {
+	Rect grow(const Rect &r) const {
 		return Rect{std::min(x0, r.x0), std::min(y0, r.y0), std::max(x1, r.x1),
 		            std::max(y1, r.y1)};
+	}
+
+	Rect grow(const Point &p) const {
+		return Rect{std::min(x0, p.x), std::min(y0, p.y), std::max(x1, p.x),
+		            std::max(y1, p.y)};
 	}
 
 	Rect &operator+=(const Point &p) {
@@ -169,15 +165,6 @@ struct Rect {
 	bool operator!=(const Rect &r) const {
 		return (x0 != r.x0) || (y0 != r.y0) || (x1 != r.x1) || (y1 != r.y1);
 	}
-
-	/**
-	 * Rotates the rectangle within another bounding rectangle.
-	 *
-	 * @param bounds is the original bounding rectangle.
-	 * @param orientation is the angle by which the rectangle should be rotated
-	 * in 90° steps.
-	 */
-	Rect rotate(const Rect &bounds, int orientation) const;
 };
 
 /**

@@ -172,7 +172,7 @@ public:
 		}
 	}
 
-	void commit(const Rect &r, CommitMode mode) {
+	void commit(const Rect &r, UpdateMode mode) {
 		// Abort if the surface is not locked
 		if (m_locked <= 0) {
 			return;
@@ -275,7 +275,7 @@ Rect MemoryDisplay::lock() { return m_impl->lock(); }
 
 void MemoryDisplay::unlock() { m_impl->unlock(); }
 
-void MemoryDisplay::commit(const Rect &r, CommitMode mode) {
+void MemoryDisplay::commit(const Rect &r, UpdateMode mode) {
 	m_impl->commit(r, mode);
 }
 

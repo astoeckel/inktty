@@ -16,17 +16,15 @@
  *  along with this program.  If not, see <https://www.gnu.org/licenses/>.
  */
 
-#include <vector>
+#ifndef INKTTY_GFX_MATRIX_RENDERER_HPP
+#define INKTTY_GFX_MATRIX_RENDERER_HPP
+
+#include <memory>
 
 #include <inktty/config/configuration.hpp>
 #include <inktty/gfx/display.hpp>
 #include <inktty/gfx/font.hpp>
 #include <inktty/term/matrix.hpp>
-#include <inktty/utils/color.hpp>
-#include <inktty/utils/geometry.hpp>
-
-#ifndef INKTTY_GFX_MATRIX_RENDERER_HPP
-#define INKTTY_GFX_MATRIX_RENDERER_HPP
 
 namespace inktty {
 
@@ -35,46 +33,15 @@ namespace inktty {
  */
 class MatrixRenderer {
 private:
-	const Configuration &m_config;
-
-	Font &m_font;
-
-	Display &m_display;
-
-	Matrix &m_matrix;
-
-	unsigned int m_font_size;
-
-	unsigned int m_orientation;
-
-	size_t m_cols, m_rows;
-
-	Rect m_bounds;
-
-	int m_pad_x, m_pad_y;
-
-	size_t m_cell_w, m_cell_h;
-
-	bool m_needs_geometry_update;
-
-	RectangleMerger m_merger;
-
-	void update_geometry();
-
-	Rect get_coords(size_t row, size_t col);
-
-	Rect draw_cell(size_t row, size_t col, const Matrix::Cell &cell, bool erase,
-	               bool low_quality = true);
+	class Impl;
+	std::unique_ptr<Impl> m_impl;
 
 public:
 	MatrixRenderer(const Configuration &config, Font &font, Display &display,
 	               Matrix &matrix, unsigned int font_size = 12 * 64,
 	               unsigned int orientation = 0);
 
-	/**
-	 * Clears all cell content.
-	 */
-	void reset();
+	~MatrixRenderer();
 
 	/**
 	 * Draws the matrix to the screen.
@@ -87,21 +54,12 @@ public:
 
 	void set_font_size(unsigned int font_size);
 
-	unsigned int font_size() const { return m_font_size; }
+	unsigned int font_size() const;
 
 	void set_orientation(unsigned int rotation);
 
-	unsigned int orientation() const { return m_orientation; }
+	unsigned int orientation() const;
 
-	/**
-	 * Returns the number of cells in x-direction.
-	 */
-	size_t cols() const { return m_matrix.size().x; }
-
-	/**
-	 * Returns the number of cells in y-direction.
-	 */
-	size_t rows() const { return m_matrix.size().y; }
 };
 
 }  // namespace inktty
