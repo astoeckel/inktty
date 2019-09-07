@@ -328,8 +328,8 @@ public:
 
 		/* Update cells depending on a global update rule, such as a redraw
 		   timeout. */
-		constexpr uint32_t redraw_timeout_low = 250;
-		constexpr uint32_t redraw_timeout_high = 1000;
+		constexpr uint32_t redraw_timeout_low = 2000;
+		constexpr uint32_t redraw_timeout_high = 3000;
 		constexpr uint32_t update_counter_threshold_low = 1000;
 		constexpr uint32_t update_counter_threshold_high = 2000;
 		uint32_t update_counter_threshold = update_counter_threshold_high;

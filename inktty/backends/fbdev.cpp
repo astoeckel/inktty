@@ -122,9 +122,6 @@ FbDevDisplay::FbDevDisplay(const char *fbdev)
 	m_stride = finfo.line_length;
 	m_buf_offs =
 	    m_buf + vinfo.xoffset * m_layout.bypp() + vinfo.yoffset * m_stride;
-
-	uint32_t upd_scheme = UPDATE_SCHEME_QUEUE;
-	ioctl(m_fb_fd, MXCFB_SET_UPDATE_SCHEME, &upd_scheme);
 }
 
 FbDevDisplay::~FbDevDisplay() {
@@ -147,41 +144,12 @@ void FbDevDisplay::epaper_mxc_update(int x, int y, int w, int h,
 	data.update_marker = MARKER;
 
 	// Do a full update in case the update mode is set to "Full"
-	data.update_mode = (mode.mask_op == UpdateMode::Full) ? UPDATE_MODE_FULL
-	                                                      : UPDATE_MODE_PARTIAL;
-
-	// Set the waveform
-	data.waveform_mode = 0xFFFF;
-	if (mode.mask_op == UpdateMode::SourceMono) {
-		data.waveform_mode = WAVEFORM_MODE_DU;
-	} else if (mode.mask_op == UpdateMode::SourceAndTargetMono) {
-		data.waveform_mode = WAVEFORM_MODE_A2;
-	} else if (mode.mask_op == UpdateMode::TargetMono) {
-		if (mode.output_op & UpdateMode::ForceMono) {
-			data.waveform_mode = WAVEFORM_MODE_A2;
-		}
-	} else if (mode.output_op == UpdateMode::Identity) {
-		if (mode.mask_op == UpdateMode::Full) {
-			data.waveform_mode = WAVEFORM_MODE_GC16;
-		} else {
-			data.waveform_mode = WAVEFORM_MODE_GC16_FAST;
-		}
-	}
-	if (data.waveform_mode == 0xFFFF) {
-		global_logger().warn() << "Invalid update mode.";
-		data.waveform_mode = WAVEFORM_MODE_AUTO;
-	}
-
-	// Set the flags
-	if (mode.output_op & UpdateMode::Invert) {
-		data.flags |= EPDC_FLAG_ENABLE_INVERSION;
-	}
-	if (mode.output_op & UpdateMode::ForceMono) {
-		data.flags |= EPDC_FLAG_FORCE_MONOCHROME;
-	}
+	data.update_mode = UPDATE_MODE_PARTIAL;
+	data.waveform_mode = WAVEFORM_MODE_A2;
+	data.flags = EPDC_FLAG_FORCE_MONOCHROME;
 
 	ioctl(m_fb_fd, MXCFB_SEND_UPDATE, &data);
-	ioctl(m_fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &MARKER);
+//	ioctl(m_fb_fd, MXCFB_WAIT_FOR_UPDATE_COMPLETE, &MARKER);
 }
 
 void FbDevDisplay::do_unlock(const CommitRequest *begin,
