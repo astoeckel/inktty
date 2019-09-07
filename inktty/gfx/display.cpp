@@ -197,8 +197,8 @@ public:
 
 		// Clip the given rectangle to the target rectangle and abort if there
 		// is nothing to draw
-		const Rect tar = m_surf_rect.clip(r);
-		if (tar.width() == 0 || tar.height() == 0) {
+		r = m_surf_rect.clip(r);
+		if (r.width() == 0 || r.height() == 0) {
 			return nullptr;
 		}
 
